@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+<!-- =========================================================================
+     sensors.xacro
+     LiDAR 2D + IMU — cần cho SLAM / Nav2.
+     Vị trí gắn là ƯỚC LƯỢNG: chỉnh lại theo chỗ bạn lắp cảm biến thật.
+     ========================================================================= -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ============================ LiDAR 2D ============================ -->
+  <!-- Gắn trên nóc, phía trước, giữa theo Y -->
+  <xacro:property name="lidar_radius" value="0.04"/>
+  <xacro:property name="lidar_height" value="0.05"/>
+  <xacro:property name="lidar_x" value="${base_length/2 - 0.10}"/>
+  <xacro:property name="lidar_z" value="${base_height/2 + lidar_height/2}"/>
+
+  <link name="lidar_link">
+    <visual>
+      <geometry><cylinder radius="${lidar_radius}" length="${lidar_height}"/></geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="${lidar_radius}" length="${lidar_height}"/></geometry>
+    </collision>
+    <xacro:cylinder_inertia m="0.2" r="${lidar_radius}" h="${lidar_height}"/>
+  </link>
+
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="lidar_link"/>
+    <origin xyz="${lidar_x} 0 ${lidar_z}" rpy="0 0 0"/>
+  </joint>
+
+  <gazebo reference="lidar_link">
+    <material>Gazebo/Blue</material>
+    <sensor name="lidar" type="ray">
+      <pose>0 0 0 0 0 0</pose>
+      <visualize>true</visualize>
+      <update_rate>10</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>360</samples>
+            <resolution>1.0</resolution>
+            <min_angle>-3.141592</min_angle>
+            <max_angle>3.141592</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.12</min>
+          <max>12.0</max>
+          <resolution>0.01</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </ray>
+      <plugin name="lidar_controller" filename="libgazebo_ros_ray_sensor.so">
+        <ros>
+          <remapping>~/out:=scan</remapping>
+        </ros>
+        <output_type>sensor_msgs/LaserScan</output_type>
+        <frame_name>lidar_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- ============================== IMU =============================== -->
+  <link name="imu_link">
+    <visual>
+      <geometry><box size="0.03 0.03 0.01"/></geometry>
+      <material name="orange"/>
+    </visual>
+    <xacro:box_inertia m="0.05" x="0.03" y="0.03" z="0.01"/>
+  </link>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <gazebo reference="imu_link">
+    <sensor name="imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <plugin name="imu_plugin" filename="libgazebo_ros_imu_sensor.so">
+        <ros>
+          <remapping>~/out:=imu/data</remapping>
+        </ros>
+        <initial_orientation_as_reference>false</initial_orientation_as_reference>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+</robot>

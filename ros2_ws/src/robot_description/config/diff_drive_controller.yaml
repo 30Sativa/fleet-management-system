@@ -1,0 +1,62 @@
+# =============================================================================
+# diff_drive_controller.yaml
+# Cấu hình controller_manager + diff_drive_controller cho AMR.
+# LƯU Ý: wheel_separation và wheel_radius PHẢI khớp với URDF, nếu lệch thì
+#        odometry sai -> robot tưởng mình đi sai chỗ.
+#   wheel_separation = base_width + wheel_width = 0.55 + 0.05 = 0.60
+#   wheel_radius     = 0.10
+# =============================================================================
+controller_manager:
+  ros__parameters:
+    update_rate: 50  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+
+diff_drive_controller:
+  ros__parameters:
+    left_wheel_names:  ["left_wheel_joint"]
+    right_wheel_names: ["right_wheel_joint"]
+
+    wheel_separation: 0.60
+    wheel_radius: 0.10
+
+    # Hệ số hiệu chỉnh (để 1.0 trừ khi calib ra lệch)
+    wheel_separation_multiplier: 1.0
+    left_wheel_radius_multiplier: 1.0
+    right_wheel_radius_multiplier: 1.0
+
+    publish_rate: 50.0
+    odom_frame_id: odom
+    base_frame_id: base_footprint
+    pose_covariance_diagonal:  [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+    twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+
+    open_loop: false
+    enable_odom_tf: true
+
+    # Nhận lệnh từ /cmd_vel (geometry_msgs/Twist).
+    # Đặt true nếu bạn dùng TwistStamped (Nav2 mới có thể yêu cầu).
+    use_stamped_vel: false
+    cmd_vel_timeout: 0.5  # giây, mất lệnh quá lâu thì dừng
+
+    # Giới hạn vận tốc / gia tốc — chỉnh theo robot thật
+    linear:
+      x:
+        has_velocity_limits: true
+        max_velocity: 1.0      # m/s
+        min_velocity: -1.0
+        has_acceleration_limits: true
+        max_acceleration: 1.0  # m/s^2
+        min_acceleration: -1.0
+    angular:
+      z:
+        has_velocity_limits: true
+        max_velocity: 2.0      # rad/s
+        min_velocity: -2.0
+        has_acceleration_limits: true
+        max_acceleration: 2.0  # rad/s^2
+        min_acceleration: -2.0
