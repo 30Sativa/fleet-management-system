@@ -1,10 +1,9 @@
 <?xml version="1.0"?>
 <!-- =========================================================================
      ros2_control.xacro
-     Khai báo hardware interface cho 2 bánh chính.
-     Dùng biến 'use_sim' để chuyển giữa:
-       - Gazebo (gazebo_ros2_control/GazeboSystem)
-       - Hardware thật (thay bằng plugin driver của bạn, xem ghi chú bên dưới)
+     Khai bao hardware interface cho 2 banh chinh.
+     use_sim=true  -> Gazebo (gazebo_ros2_control/GazeboSystem)
+     use_sim=false -> hardware that (doi plugin driver cua ban)
      ========================================================================= -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
@@ -13,15 +12,11 @@
 
       <hardware>
         <xacro:if value="${use_sim}">
-          <!-- ===== MÔ PHỎNG (Gazebo Classic) ===== -->
+          <!-- ===== MO PHONG (Gazebo Classic) ===== -->
           <plugin>gazebo_ros2_control/GazeboSystem</plugin>
         </xacro:if>
         <xacro:unless value="${use_sim}">
-          <!-- ===== HARDWARE THẬT =====
-               Đổi plugin này thành driver thật của bạn. Ví dụ phổ biến:
-                 - diffdrive_arduino/DiffDriveArduinoHardware
-                 - hoặc plugin tự viết kế thừa hardware_interface::SystemInterface
-               và khai báo các <param> như cổng serial, baud, encoder ticks... -->
+          <!-- ===== HARDWARE THAT: doi plugin nay thanh driver that cua ban ===== -->
           <plugin>diffdrive_arduino/DiffDriveArduinoHardware</plugin>
           <param name="left_wheel_name">left_wheel_joint</param>
           <param name="right_wheel_name">right_wheel_joint</param>
@@ -32,7 +27,7 @@
         </xacro:unless>
       </hardware>
 
-      <!-- Bánh trái -->
+      <!-- Banh trai -->
       <joint name="left_wheel_joint">
         <command_interface name="velocity">
           <param name="min">-20.0</param>
@@ -42,7 +37,7 @@
         <state_interface name="position"/>
       </joint>
 
-      <!-- Bánh phải -->
+      <!-- Banh phai -->
       <joint name="right_wheel_joint">
         <command_interface name="velocity">
           <param name="min">-20.0</param>
@@ -54,10 +49,15 @@
 
     </ros2_control>
 
-    <!-- Plugin gazebo_ros2_control: nạp controller_manager + file YAML config -->
+    <!-- Plugin gazebo_ros2_control: nap controller_manager + doc URDF + YAML.
+         robot_param + robot_param_node giup plugin LAY URDF tu
+         robot_state_publisher qua topic, thay vi tu day param robot_description
+         (cai do gay loi parse param override rule). -->
     <xacro:if value="${use_sim}">
       <gazebo>
         <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+          <robot_param>robot_description</robot_param>
+          <robot_param_node>robot_state_publisher</robot_param_node>
           <parameters>$(find robot_description)/config/diff_drive_controller.yaml</parameters>
         </plugin>
       </gazebo>
