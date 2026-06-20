@@ -8,11 +8,14 @@ from rclpy.node import Node
 
 try:
     import serial
-    from serial import SerialException
+    from serial import SerialException, SerialTimeoutException
 except ImportError:  # pragma: no cover - depends on host ROS environment
     serial = None
 
     class SerialException(Exception):
+        pass
+
+    class SerialTimeoutException(SerialException):
         pass
 
 
@@ -116,6 +119,11 @@ class Stm32BridgeNode(Node):
 
         self._ensure_serial(now)
 
+        # Drain incoming feedback first so the firmware's USB CDC buffer never
+        # fills up. A full read buffer can stall our write() and trigger a
+        # spurious write timeout.
+        self._read_feedback()
+
         if self._last_cmd_time is None:
             # No /cmd_vel received yet. Keep the firmware in STOP state.
             self._send_stop()
@@ -127,8 +135,6 @@ class Stm32BridgeNode(Node):
             self._send_stop()
         else:
             self._send_command(self._left_mm_s, self._right_mm_s)
-
-        self._read_feedback()
 
     def _clamp_wheel_speed(self, value: float, wheel_name: str) -> float:
         clamped = max(
@@ -174,7 +180,7 @@ class Stm32BridgeNode(Node):
                 port=self.port,
                 baudrate=self.baudrate,
                 timeout=0.0,
-                write_timeout=0.2,
+                write_timeout=1.0,
             )
             self._rx_buffer = ''
             self.get_logger().info(
@@ -205,6 +211,17 @@ class Stm32BridgeNode(Node):
         try:
             self._serial.write(command.encode('ascii'))
             return True
+        except SerialTimeoutException:
+            # The USB CDC pipe is momentarily congested, not disconnected.
+            # Drop this frame instead of tearing down the port; the next timer
+            # tick will send a fresh command.
+            self.get_logger().warn(
+                f'Serial write timed out on {self.port}; dropping one frame.')
+            try:
+                self._serial.reset_output_buffer()
+            except (OSError, SerialException):
+                pass
+            return False
         except (OSError, SerialException) as exc:
             self.get_logger().error(
                 f'Serial write failed on {self.port}: {exc}. '
