@@ -4,9 +4,16 @@
 #include "main.h"
 #include <stdint.h>
 
-/* Tune these values to match the real drivetrain and HBS57H DIP switches. */
+/* Tune these values to match the real drivetrain and HBS57H DIP switches.
+ * Measured hardware:
+ *   - Wheel: 190 mm diameter.
+ *   - Motor: 57EBP98ALC, 1.8 deg/step (200 full steps/rev).
+ *   - Driver: HBS57H, SW1-4 = on/off/on/on -> 1600 pulse/rev.
+ *   - Gearbox: F57-L1-10-P2 planetary, 10:1.
+ * => 1600 * 10 = 16000 pulses per wheel revolution.
+ */
 #ifndef WHEEL_DIAMETER_MM
-#define WHEEL_DIAMETER_MM      100.0f
+#define WHEEL_DIAMETER_MM      190.0f
 #endif
 
 #ifndef GEAR_RATIO

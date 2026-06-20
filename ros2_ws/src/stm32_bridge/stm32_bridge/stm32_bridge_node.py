@@ -180,7 +180,7 @@ class Stm32BridgeNode(Node):
                 port=self.port,
                 baudrate=self.baudrate,
                 timeout=0.0,
-                write_timeout=1.0,
+                write_timeout=None,
             )
             self._rx_buffer = ''
             self.get_logger().info(
