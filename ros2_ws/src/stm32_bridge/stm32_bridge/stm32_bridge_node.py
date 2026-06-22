@@ -56,12 +56,12 @@ class Stm32BridgeNode(Node):
         self.declare_parameter('microstep', 8.0)
         self.declare_parameter('gear_ratio', 10.0)
         self.declare_parameter('max_steps_per_sec', 12000.0)
-        self.declare_parameter('max_wheel_speed_mm_s', 1000.0)
+        self.declare_parameter('max_wheel_speed_mm_s', 250.0)
         self.declare_parameter('send_rate_hz', 20.0)
         self.declare_parameter('cmd_timeout', 0.5)
         self.declare_parameter('invert_left', False)
         self.declare_parameter('invert_right', False)
-        self.declare_parameter('speed_scale', 1.0)
+        self.declare_parameter('speed_scale', 0.3)
         self.declare_parameter('publish_odom', True)
         self.declare_parameter('publish_tf', True)
         self.declare_parameter('odom_frame', 'odom')
@@ -138,8 +138,8 @@ class Stm32BridgeNode(Node):
 
         if self.max_wheel_speed_mm_s <= 0.0:
             self.get_logger().warn(
-                'max_wheel_speed_mm_s must be > 0. Falling back to 1000 mm/s.')
-            self.max_wheel_speed_mm_s = 1000.0
+                'max_wheel_speed_mm_s must be > 0. Falling back to 250 mm/s.')
+            self.max_wheel_speed_mm_s = 250.0
 
         if self.max_steps_per_sec <= 0.0:
             self.get_logger().warn(

@@ -7,6 +7,8 @@ param(
     [int]$PeriodMs = 20,
     [int]$SummaryMs = 500,
     [int]$StartSeq = 1,
+    [int]$OpenRetries = 1,
+    [int]$OpenRetryMs = 500,
     [switch]$VerboseLog,
     [switch]$NoStop
 )
@@ -77,7 +79,32 @@ function Read-AvailableLines {
 }
 
 try {
-    $port.Open()
+    $opened = $false
+    for ($attempt = 1; $attempt -le $OpenRetries; $attempt++) {
+        try {
+            $port.Open()
+            $opened = $true
+            break
+        }
+        catch {
+            if ($attempt -ge $OpenRetries) {
+                throw
+            }
+
+            Write-Warning ("Open {0} failed ({1}/{2}): {3}. Retrying in {4} ms." -f `
+                $PortName,
+                $attempt,
+                $OpenRetries,
+                $_.Exception.Message,
+                $OpenRetryMs)
+            Start-Sleep -Milliseconds $OpenRetryMs
+        }
+    }
+
+    if (-not $opened) {
+        throw "Failed to open $PortName"
+    }
+
     Write-Host ("Opened {0}. Sending CMD every {1} ms for {2} ms." -f $PortName, $PeriodMs, $DurationMs)
     Write-Host ("Target: left={0} mm/s, right={1} mm/s" -f $LeftMMPS, $RightMMPS)
     if (-not $VerboseLog) {

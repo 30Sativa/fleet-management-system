@@ -71,7 +71,7 @@ def generate_launch_description():
             description='Expected maximum step rate for feedback jump warnings.'),
         DeclareLaunchArgument(
             'max_wheel_speed_mm_s',
-            default_value='1000.0',
+            default_value='250.0',
             description='Clamp each wheel command to +/- this speed in mm/s.'),
         DeclareLaunchArgument(
             'send_rate_hz',
@@ -91,7 +91,7 @@ def generate_launch_description():
             description='Invert right wheel command sign.'),
         DeclareLaunchArgument(
             'speed_scale',
-            default_value='1.0',
+            default_value='0.3',
             description='Scale wheel commands before invert and clamp.'),
         DeclareLaunchArgument(
             'publish_odom',
