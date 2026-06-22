@@ -1,0 +1,62 @@
+name: Build STM32 Firmware
+
+on:
+  pull_request:
+    paths:
+      - "firmware/stm32/**"
+      - ".github/workflows/stm32-build.yml"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "firmware/stm32/**"
+      - ".github/workflows/stm32-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build-stm32:
+    name: Compile STM32 firmware only
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: firmware/stm32/motor_controller/Debug
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ARM GCC toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-arm-none-eabi make
+
+      - name: Make generated STM32CubeIDE makefile portable
+        run: |
+          perl -0pi -e 's#[A-Za-z]:\\[^"\s]*\\STM32G431C6UX_FLASH\.ld#../STM32G431C6UX_FLASH.ld#g' makefile
+
+      - name: Compile firmware
+        run: |
+          make clean
+          make -j"$(nproc)" all
+
+      - name: Generate bin and hex artifacts
+        run: |
+          arm-none-eabi-objcopy -O binary MotorController_G431.elf MotorController_G431.bin
+          arm-none-eabi-objcopy -O ihex MotorController_G431.elf MotorController_G431.hex
+
+      - name: Upload firmware build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stm32-motor-controller
+          path: |
+            firmware/stm32/motor_controller/Debug/MotorController_G431.elf
+            firmware/stm32/motor_controller/Debug/MotorController_G431.bin
+            firmware/stm32/motor_controller/Debug/MotorController_G431.hex
+            firmware/stm32/motor_controller/Debug/MotorController_G431.map
+            firmware/stm32/motor_controller/Debug/MotorController_G431.list
+          if-no-files-found: error

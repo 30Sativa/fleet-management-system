@@ -1,0 +1,17 @@
+services:
+  robot-ros2:
+    image: ${DOCKER_IMAGE:-your-dockerhub-username/robot-ros2:latest}
+    container_name: robot-ros2
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+      RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+      SERIAL_PORT: ${SERIAL_PORT:-/dev/ttyACM0}
+      BAUDRATE: ${BAUDRATE:-115200}
+    devices:
+      - "${SERIAL_PORT:-/dev/ttyACM0}:${SERIAL_PORT:-/dev/ttyACM0}"
+    command: >
+      ros2 launch stm32_bridge stm32_bridge.launch.py
+      port:=${SERIAL_PORT:-/dev/ttyACM0}
+      baudrate:=${BAUDRATE:-115200}

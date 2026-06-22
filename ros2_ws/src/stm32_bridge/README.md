@@ -5,15 +5,27 @@ ROS2 Humble bridge for the real STM32 motor controller.
 Flow:
 
 ```text
-teleop_twist_keyboard -> /cmd_vel -> stm32_bridge_node -> USB CDC Serial -> STM32
+teleop_twist_keyboard / Nav2
+        -> /cmd_vel
+        -> stm32_bridge_node
+        -> USB CDC Serial
+        -> STM32
+        -> HBS57H STEP/DIR
+        -> motors
+
+STM32
+        -> FB feedback
+        -> stm32_bridge_node
+        -> /odom
+        -> TF odom -> base_link
 ```
 
-The laptop only sends wheel speed commands. The STM32 firmware keeps ownership
-of the real-time STEP/DIR generation for the HBS57H drivers.
+The laptop only sends wheel speed commands and computes odometry from STM32
+feedback. The STM32 firmware keeps ownership of real-time STEP/DIR generation.
 
 ## STM32 Protocol
 
-The current firmware parses two command formats:
+The current firmware parses these command formats:
 
 ```text
 CMD,<seq>,<left_mm_s>,<right_mm_s>\r\n
@@ -30,14 +42,72 @@ STOP,3
 ```
 
 The bridge sends `CMD,...` for normal motion and the firmware's dedicated
-`STOP,<seq>` for the watchdog timeout, for the idle state before the first
-`/cmd_vel`, and on shutdown. `STOP` puts the firmware into its STOP state,
-which is cleaner than sending `CMD,<seq>,0,0`.
+`STOP,<seq>` for watchdog timeout, idle before the first `/cmd_vel`, and
+shutdown. Speed units are `mm/s`, not step/s.
 
-Speed units are `mm/s`, not step/s. The bridge rounds wheel commands to integer
-mm/s before sending. Firmware currently parses speed values with `strtof`, so
-integer text values are accepted. `seq` starts at 0 and wraps at uint32; the
-firmware stores the last `seq` but does not require it to increase.
+The current firmware sends feedback in this format:
+
+```text
+FB,<seq>,<left_count>,<right_count>,<dt_ms>,<status>\r\n
+```
+
+Example:
+
+```text
+FB,42,1200,1195,20,OK
+FB,43,1250,1243,20,OK
+FB,44,1250,1243,20,STOP
+```
+
+Fields:
+
+| Field | Meaning |
+|---|---|
+| `seq` | Last valid command sequence observed by the STM32 |
+| `left_count` | Cumulative signed left step count |
+| `right_count` | Cumulative signed right step count |
+| `dt_ms` | Firmware feedback period in milliseconds |
+| `status` | `OK`, `STOP`, `TIMEOUT`, or `ERR` |
+
+The bridge also accepts the simpler fallback format
+`FB,<left_count>,<right_count>,<dt_ms>,<status>` if firmware is changed later.
+
+## Odometry
+
+The node converts count deltas to differential-drive odometry:
+
+```text
+wheel_circumference = 2 * pi * wheel_radius
+steps_per_meter = steps_per_rev * microstep * gear_ratio / wheel_circumference
+
+left_distance = delta_left_count / steps_per_meter
+right_distance = delta_right_count / steps_per_meter
+
+delta_s = (right_distance + left_distance) / 2
+delta_theta = (right_distance - left_distance) / wheel_base
+```
+
+It publishes:
+
+| Topic | Type |
+|---|---|
+| `/odom` | `nav_msgs/msg/Odometry` |
+
+It broadcasts:
+
+```text
+odom -> base_link
+```
+
+Default drivetrain values match the current firmware notes:
+
+```text
+wheel_radius = 0.095 m
+steps_per_rev = 200
+microstep = 8
+gear_ratio = 10
+steps_per_meter ~= 26809
+```
 
 ## Environment
 
@@ -68,17 +138,10 @@ colcon build --packages-select stm32_bridge
 source install/setup.bash
 ```
 
-## Run
+## Run Bridge
 
 ```bash
 ros2 launch stm32_bridge stm32_bridge.launch.py
-```
-
-In another terminal:
-
-```bash
-source ~/ros2_ws/install/setup.bash
-ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
 
 If the STM32 appears on a different port:
@@ -93,6 +156,37 @@ Useful tuning examples:
 ros2 launch stm32_bridge stm32_bridge.launch.py speed_scale:=0.5
 ros2 launch stm32_bridge stm32_bridge.launch.py max_wheel_speed_mm_s:=600
 ros2 launch stm32_bridge stm32_bridge.launch.py invert_left:=true
+ros2 launch stm32_bridge stm32_bridge.launch.py publish_odom:=true publish_tf:=true
+```
+
+## Run Teleop
+
+In another terminal:
+
+```bash
+source ~/ros2_ws/install/setup.bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+```
+
+## Check Odometry
+
+```bash
+ros2 topic echo /odom
+```
+
+You should see pose and twist changing while the robot moves and STM32 feedback
+arrives.
+
+## Check TF
+
+```bash
+ros2 run tf2_ros tf2_echo odom base_link
+```
+
+Or generate a frame graph:
+
+```bash
+ros2 run tf2_tools view_frames
 ```
 
 ## Parameters
@@ -102,12 +196,37 @@ ros2 launch stm32_bridge stm32_bridge.launch.py invert_left:=true
 | `port` | `/dev/ttyACM0` | STM32 USB CDC serial port |
 | `baudrate` | `115200` | Serial baudrate |
 | `wheel_base` | `0.60` | Distance between wheels, meters |
-| `max_wheel_speed_mm_s` | `1000.0` | Clamp per-wheel speed, mm/s |
-| `send_rate_hz` | `20.0` | Periodic serial send rate |
-| `cmd_timeout` | `0.5` | Send stop after this many seconds without `/cmd_vel` |
-| `invert_left` | `false` | Flip left wheel sign |
-| `invert_right` | `false` | Flip right wheel sign |
-| `speed_scale` | `1.0` | Scale wheel speeds before invert and clamp |
+| `wheel_radius` | `0.095` | Wheel radius, meters |
+| `steps_per_rev` | `200.0` | Motor full steps per revolution |
+| `microstep` | `8.0` | HBS57H microstep multiplier |
+| `gear_ratio` | `10.0` | Motor-to-wheel gear ratio |
+| `max_steps_per_sec` | `12000.0` | Expected max step rate for jump warnings |
+| `max_wheel_speed_mm_s` | `1000.0` | Clamp per-wheel command, mm/s |
+| `send_rate_hz` | `20.0` | Periodic serial send/read rate |
+| `cmd_timeout` | `0.5` | Send STOP after this many seconds without `/cmd_vel` |
+| `invert_left` | `false` | Flip left command sign and feedback delta sign |
+| `invert_right` | `false` | Flip right command sign and feedback delta sign |
+| `speed_scale` | `1.0` | Scale wheel commands before invert and clamp |
+| `publish_odom` | `true` | Publish `/odom` |
+| `publish_tf` | `true` | Broadcast `odom -> base_link` |
+| `odom_frame` | `odom` | Odometry parent frame |
+| `base_frame` | `base_link` | Robot base child frame |
+| `feedback_timeout` | `1.0` | Warn after missing feedback for this many seconds |
+| `feedback_counts_are_cumulative` | `true` | Treat feedback counts as cumulative |
+| `feedback_rate_warn_hz` | `2.0` | Max warning rate for feedback issues |
+| `reset_odom_on_start` | `true` | Use first cumulative sample as zero baseline |
+| `odom_covariance_diagonal` | `[0.01, 0.01, 99999.0, 99999.0, 99999.0, 0.1]` | Pose covariance diagonal |
+| `twist_covariance_diagonal` | `[0.01, 99999.0, 99999.0, 99999.0, 99999.0, 0.1]` | Twist covariance diagonal |
+
+## If `/odom` Does Not Change
+
+1. Confirm the STM32 is sending lines like `FB,42,1200,1195,20,OK`.
+2. Use a serial monitor or `tools/motor_serial_debug.ps1` from this repo to
+   inspect raw feedback.
+3. Check that `feedback_counts_are_cumulative` matches the firmware.
+4. Check drivetrain parameters: `wheel_radius`, `steps_per_rev`, `microstep`,
+   and `gear_ratio`.
+5. If signs are reversed, try `invert_left:=true` or `invert_right:=true`.
 
 ## Test Checklist
 
@@ -115,9 +234,9 @@ ros2 launch stm32_bridge stm32_bridge.launch.py invert_left:=true
 - Backward key sends `CMD,<seq>,negative,negative`.
 - Rotate key sends opposite signs on left and right.
 - Releasing keys or losing `/cmd_vel` for `cmd_timeout` sends `STOP,<seq>`.
+- Incoming `FB,...` lines update `/odom`.
+- `tf2_echo odom base_link` shows a live transform.
+- Serial disconnect/reconnect does not crash the node.
 - If one wheel direction is wrong, set `invert_left` or `invert_right`.
 - If the robot is too slow, increase `speed_scale`, increase
   `max_wheel_speed_mm_s`, or increase the teleop speed.
-- If the robot is roughly 2x too fast, the current firmware value
-  `WHEEL_DIAMETER_MM = 100` may not match the real 190-200 mm wheel. For this
-  phase, compensate with `speed_scale:=0.5`; do not change firmware here.

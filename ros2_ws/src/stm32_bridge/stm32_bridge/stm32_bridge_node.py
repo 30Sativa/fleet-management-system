@@ -1,10 +1,12 @@
 import math
 import time
-from typing import Optional
+from typing import Optional, Sequence, Tuple
 
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import TransformStamped, Twist
+from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
+from tf2_ros import TransformBroadcaster
 
 try:
     import serial
@@ -20,10 +22,28 @@ except ImportError:  # pragma: no cover - depends on host ROS environment
 
 
 UINT32_MODULO = 2 ** 32
+INT32_MODULO = 2 ** 32
+INT32_HALF_RANGE = 2 ** 31
+DEFAULT_ODOM_COVARIANCE_DIAGONAL = [
+    0.01,
+    0.01,
+    99999.0,
+    99999.0,
+    99999.0,
+    0.1,
+]
+DEFAULT_TWIST_COVARIANCE_DIAGONAL = [
+    0.01,
+    99999.0,
+    99999.0,
+    99999.0,
+    99999.0,
+    0.1,
+]
 
 
 class Stm32BridgeNode(Node):
-    """Bridge /cmd_vel Twist commands to the STM32 USB CDC text protocol."""
+    """Bridge /cmd_vel commands and STM32 feedback for wheel odometry."""
 
     def __init__(self):
         super().__init__('stm32_bridge_node')
@@ -31,16 +51,43 @@ class Stm32BridgeNode(Node):
         self.declare_parameter('port', '/dev/ttyACM0')
         self.declare_parameter('baudrate', 115200)
         self.declare_parameter('wheel_base', 0.60)
+        self.declare_parameter('wheel_radius', 0.095)
+        self.declare_parameter('steps_per_rev', 200.0)
+        self.declare_parameter('microstep', 8.0)
+        self.declare_parameter('gear_ratio', 10.0)
+        self.declare_parameter('max_steps_per_sec', 12000.0)
         self.declare_parameter('max_wheel_speed_mm_s', 1000.0)
         self.declare_parameter('send_rate_hz', 20.0)
         self.declare_parameter('cmd_timeout', 0.5)
         self.declare_parameter('invert_left', False)
         self.declare_parameter('invert_right', False)
         self.declare_parameter('speed_scale', 1.0)
+        self.declare_parameter('publish_odom', True)
+        self.declare_parameter('publish_tf', True)
+        self.declare_parameter('odom_frame', 'odom')
+        self.declare_parameter('base_frame', 'base_link')
+        self.declare_parameter('feedback_timeout', 1.0)
+        self.declare_parameter('feedback_counts_are_cumulative', True)
+        self.declare_parameter('feedback_rate_warn_hz', 2.0)
+        self.declare_parameter('reset_odom_on_start', True)
+        self.declare_parameter(
+            'odom_covariance_diagonal',
+            DEFAULT_ODOM_COVARIANCE_DIAGONAL,
+        )
+        self.declare_parameter(
+            'twist_covariance_diagonal',
+            DEFAULT_TWIST_COVARIANCE_DIAGONAL,
+        )
 
         self.port = self.get_parameter('port').value
         self.baudrate = int(self.get_parameter('baudrate').value)
         self.wheel_base = float(self.get_parameter('wheel_base').value)
+        self.wheel_radius = float(self.get_parameter('wheel_radius').value)
+        self.steps_per_rev = float(self.get_parameter('steps_per_rev').value)
+        self.microstep = float(self.get_parameter('microstep').value)
+        self.gear_ratio = float(self.get_parameter('gear_ratio').value)
+        self.max_steps_per_sec = float(
+            self.get_parameter('max_steps_per_sec').value)
         self.max_wheel_speed_mm_s = float(
             self.get_parameter('max_wheel_speed_mm_s').value)
         self.send_rate_hz = float(self.get_parameter('send_rate_hz').value)
@@ -48,6 +95,26 @@ class Stm32BridgeNode(Node):
         self.invert_left = bool(self.get_parameter('invert_left').value)
         self.invert_right = bool(self.get_parameter('invert_right').value)
         self.speed_scale = float(self.get_parameter('speed_scale').value)
+        self.publish_odom = bool(self.get_parameter('publish_odom').value)
+        self.publish_tf = bool(self.get_parameter('publish_tf').value)
+        self.odom_frame = str(self.get_parameter('odom_frame').value)
+        self.base_frame = str(self.get_parameter('base_frame').value)
+        self.feedback_timeout = float(
+            self.get_parameter('feedback_timeout').value)
+        self.feedback_counts_are_cumulative = bool(
+            self.get_parameter('feedback_counts_are_cumulative').value)
+        self.feedback_rate_warn_hz = float(
+            self.get_parameter('feedback_rate_warn_hz').value)
+        self.reset_odom_on_start = bool(
+            self.get_parameter('reset_odom_on_start').value)
+        self.odom_covariance_diagonal = self._read_diagonal_parameter(
+            'odom_covariance_diagonal',
+            DEFAULT_ODOM_COVARIANCE_DIAGONAL,
+        )
+        self.twist_covariance_diagonal = self._read_diagonal_parameter(
+            'twist_covariance_diagonal',
+            DEFAULT_TWIST_COVARIANCE_DIAGONAL,
+        )
 
         if self.send_rate_hz <= 0.0:
             self.get_logger().warn(
@@ -59,10 +126,28 @@ class Stm32BridgeNode(Node):
                 'cmd_timeout must be > 0. Falling back to 0.5 s.')
             self.cmd_timeout = 0.5
 
+        if self.feedback_timeout <= 0.0:
+            self.get_logger().warn(
+                'feedback_timeout must be > 0. Falling back to 1.0 s.')
+            self.feedback_timeout = 1.0
+
+        if self.feedback_rate_warn_hz <= 0.0:
+            self.get_logger().warn(
+                'feedback_rate_warn_hz must be > 0. Falling back to 2 Hz.')
+            self.feedback_rate_warn_hz = 2.0
+
         if self.max_wheel_speed_mm_s <= 0.0:
             self.get_logger().warn(
                 'max_wheel_speed_mm_s must be > 0. Falling back to 1000 mm/s.')
             self.max_wheel_speed_mm_s = 1000.0
+
+        if self.max_steps_per_sec <= 0.0:
+            self.get_logger().warn(
+                'max_steps_per_sec must be > 0. Falling back to 12000.')
+            self.max_steps_per_sec = 12000.0
+
+        self.steps_per_meter = self._compute_steps_per_meter()
+        self._feedback_warn_period = 1.0 / self.feedback_rate_warn_hz
 
         self._serial = None
         self._next_reconnect_time = 0.0
@@ -76,14 +161,42 @@ class Stm32BridgeNode(Node):
         self._last_tx_log_payload = None
         self._rx_buffer = ''
 
+        self._x = 0.0
+        self._y = 0.0
+        self._theta = 0.0
+        self._last_left_count: Optional[int] = None
+        self._last_right_count: Optional[int] = None
+        self._last_feedback_mono: Optional[float] = None
+        self._last_feedback_ros_sec: Optional[float] = None
+        self._last_feedback_seq: Optional[int] = None
+        self._last_feedback_status = ''
+        self._node_start_mono = time.monotonic()
+        self._last_feedback_timeout_warn_time = 0.0
+        self._last_invalid_dt_warn_time = 0.0
+        self._last_count_jump_warn_time = 0.0
+
+        self._odom_pub = None
+        self._tf_broadcaster = None
+        if self.publish_odom:
+            self._odom_pub = self.create_publisher(Odometry, '/odom', 10)
+        if self.publish_tf:
+            self._tf_broadcaster = TransformBroadcaster(self)
+
         self.get_logger().info(
             'Starting STM32 bridge: '
             f'port={self.port}, baudrate={self.baudrate}, '
             f'wheel_base={self.wheel_base:.3f} m, '
+            f'wheel_radius={self.wheel_radius:.3f} m, '
+            f'steps_per_rev={self.steps_per_rev:.1f}, '
+            f'microstep={self.microstep:.1f}, '
+            f'gear_ratio={self.gear_ratio:.3f}, '
+            f'steps_per_meter={self.steps_per_meter:.3f}, '
             f'max_wheel_speed_mm_s={self.max_wheel_speed_mm_s:.1f}, '
             f'speed_scale={self.speed_scale:.3f}, '
             f'invert_left={self.invert_left}, invert_right={self.invert_right}, '
-            'number_format=int(round(mm/s)), seq_start=0, seq_wrap=uint32')
+            f'publish_odom={self.publish_odom}, publish_tf={self.publish_tf}, '
+            f'odom_frame={self.odom_frame}, base_frame={self.base_frame}, '
+            'command_format=CMD/STOP mm/s, feedback_format=FB seq/count/dt/status')
 
         self._open_serial()
 
@@ -120,9 +233,10 @@ class Stm32BridgeNode(Node):
         self._ensure_serial(now)
 
         # Drain incoming feedback first so the firmware's USB CDC buffer never
-        # fills up. A full read buffer can stall our write() and trigger a
-        # spurious write timeout.
+        # fills up. A full read buffer can stall write() and trigger a spurious
+        # write timeout.
         self._read_feedback()
+        self._check_feedback_timeout(now)
 
         if self._last_cmd_time is None:
             # No /cmd_vel received yet. Keep the firmware in STOP state.
@@ -250,9 +364,251 @@ class Stm32BridgeNode(Node):
         self._rx_buffer += chunk
         while '\n' in self._rx_buffer:
             line, self._rx_buffer = self._rx_buffer.split('\n', 1)
-            line = line.rstrip('\r')
+            line = line.rstrip('\r').strip()
             if line:
                 self.get_logger().debug(f'RX: {line}')
+                self._process_rx_line(line)
+
+    def _process_rx_line(self, line: str):
+        if line.startswith('FB,'):
+            self._handle_feedback_line(line)
+            return
+
+        if line.startswith('ERR,'):
+            self.get_logger().warn(f'STM32 protocol error: {line}')
+            return
+
+        self.get_logger().debug(f'Ignoring non-feedback serial line: {line}')
+
+    def _handle_feedback_line(self, line: str):
+        parsed = self._parse_feedback_line(line)
+        if parsed is None:
+            return
+
+        seq, left_count, right_count, dt_ms, status = parsed
+        now_mono = time.monotonic()
+        now_ros = self.get_clock().now()
+        now_ros_sec = now_ros.nanoseconds / 1e9
+
+        self._last_feedback_mono = now_mono
+        self._last_feedback_seq = seq
+        self._last_feedback_status = status
+        self.get_logger().debug(
+            'Parsed feedback: '
+            f'seq={seq}, left_count={left_count}, right_count={right_count}, '
+            f'dt_ms={dt_ms:.3f}, status={status}')
+
+        delta_left_count, delta_right_count = self._compute_count_delta(
+            left_count,
+            right_count,
+        )
+        dt = self._resolve_feedback_dt(dt_ms, now_ros_sec, now_mono)
+
+        self._last_left_count = left_count
+        self._last_right_count = right_count
+        self._last_feedback_ros_sec = now_ros_sec
+
+        if delta_left_count is None or delta_right_count is None:
+            self._publish_odometry(now_ros, 0.0, 0.0)
+            return
+
+        if self.invert_left:
+            delta_left_count = -delta_left_count
+        if self.invert_right:
+            delta_right_count = -delta_right_count
+
+        self._warn_if_count_jump(delta_left_count, delta_right_count, dt,
+                                 now_mono)
+        linear_velocity, angular_velocity = self._update_odometry(
+            delta_left_count,
+            delta_right_count,
+            dt,
+        )
+        self._publish_odometry(now_ros, linear_velocity, angular_velocity)
+
+    def _parse_feedback_line(
+            self,
+            line: str) -> Optional[Tuple[Optional[int], int, int, float, str]]:
+        parts = [part.strip() for part in line.split(',')]
+        try:
+            if len(parts) == 6:
+                seq = int(parts[1])
+                left_count = int(parts[2])
+                right_count = int(parts[3])
+                dt_ms = float(parts[4])
+                status = parts[5].upper()
+            elif len(parts) == 5:
+                seq = None
+                left_count = int(parts[1])
+                right_count = int(parts[2])
+                dt_ms = float(parts[3])
+                status = parts[4].upper()
+            else:
+                raise ValueError(
+                    f'expected 5 or 6 CSV fields, got {len(parts)}')
+        except ValueError as exc:
+            self.get_logger().warn(
+                f'Failed to parse STM32 feedback "{line}": {exc}')
+            return None
+
+        return seq, left_count, right_count, dt_ms, status
+
+    def _compute_count_delta(
+            self,
+            left_count: int,
+            right_count: int) -> Tuple[Optional[int], Optional[int]]:
+        if not self.feedback_counts_are_cumulative:
+            return left_count, right_count
+
+        if self._last_left_count is None or self._last_right_count is None:
+            if self.reset_odom_on_start:
+                return None, None
+            return left_count, right_count
+
+        return (
+            self._diff_signed_32(left_count, self._last_left_count),
+            self._diff_signed_32(right_count, self._last_right_count),
+        )
+
+    def _resolve_feedback_dt(
+            self,
+            dt_ms: float,
+            now_ros_sec: float,
+            now_mono: float) -> float:
+        if math.isfinite(dt_ms) and dt_ms > 0.0:
+            return dt_ms / 1000.0
+
+        if self._last_feedback_ros_sec is not None:
+            dt = now_ros_sec - self._last_feedback_ros_sec
+            if dt > 0.0:
+                return dt
+
+        if now_mono - self._last_invalid_dt_warn_time >= self._feedback_warn_period:
+            self.get_logger().warn(
+                'Invalid feedback dt_ms and no valid ROS fallback dt yet; '
+                'publishing zero velocity for this sample.')
+            self._last_invalid_dt_warn_time = now_mono
+        return 0.0
+
+    def _update_odometry(
+            self,
+            delta_left_count: int,
+            delta_right_count: int,
+            dt: float) -> Tuple[float, float]:
+        left_distance = delta_left_count / self.steps_per_meter
+        right_distance = delta_right_count / self.steps_per_meter
+
+        delta_s = (right_distance + left_distance) / 2.0
+        delta_theta = (right_distance - left_distance) / self.wheel_base
+        heading = self._theta + delta_theta / 2.0
+
+        self._x += delta_s * math.cos(heading)
+        self._y += delta_s * math.sin(heading)
+        self._theta = self._normalize_angle(self._theta + delta_theta)
+
+        if dt > 0.0:
+            linear_velocity = delta_s / dt
+            angular_velocity = delta_theta / dt
+        else:
+            linear_velocity = 0.0
+            angular_velocity = 0.0
+
+        self.get_logger().debug(
+            'Odom: '
+            f'x={self._x:.4f}, y={self._y:.4f}, theta={self._theta:.4f}, '
+            f'linear={linear_velocity:.4f}, angular={angular_velocity:.4f}')
+        return linear_velocity, angular_velocity
+
+    def _publish_odometry(
+            self,
+            stamp,
+            linear_velocity: float,
+            angular_velocity: float):
+        qx, qy, qz, qw = self._yaw_to_quaternion(self._theta)
+
+        if self.publish_odom and self._odom_pub is not None:
+            odom = Odometry()
+            odom.header.stamp = stamp.to_msg()
+            odom.header.frame_id = self.odom_frame
+            odom.child_frame_id = self.base_frame
+            odom.pose.pose.position.x = self._x
+            odom.pose.pose.position.y = self._y
+            odom.pose.pose.position.z = 0.0
+            odom.pose.pose.orientation.x = qx
+            odom.pose.pose.orientation.y = qy
+            odom.pose.pose.orientation.z = qz
+            odom.pose.pose.orientation.w = qw
+            odom.pose.covariance = self._diagonal_to_covariance(
+                self.odom_covariance_diagonal)
+            odom.twist.twist.linear.x = linear_velocity
+            odom.twist.twist.angular.z = angular_velocity
+            odom.twist.covariance = self._diagonal_to_covariance(
+                self.twist_covariance_diagonal)
+            self._odom_pub.publish(odom)
+
+        if self.publish_tf and self._tf_broadcaster is not None:
+            transform = TransformStamped()
+            transform.header.stamp = stamp.to_msg()
+            transform.header.frame_id = self.odom_frame
+            transform.child_frame_id = self.base_frame
+            transform.transform.translation.x = self._x
+            transform.transform.translation.y = self._y
+            transform.transform.translation.z = 0.0
+            transform.transform.rotation.x = qx
+            transform.transform.rotation.y = qy
+            transform.transform.rotation.z = qz
+            transform.transform.rotation.w = qw
+            self._tf_broadcaster.sendTransform(transform)
+
+    def _check_feedback_timeout(self, now: float):
+        if not self.publish_odom and not self.publish_tf:
+            return
+
+        last_feedback = self._last_feedback_mono
+        if last_feedback is None:
+            elapsed = now - self._node_start_mono
+            if elapsed <= self.feedback_timeout:
+                return
+        else:
+            elapsed = now - last_feedback
+            if elapsed <= self.feedback_timeout:
+                return
+
+        if now - self._last_feedback_timeout_warn_time < self._feedback_warn_period:
+            return
+
+        if last_feedback is None:
+            self.get_logger().warn(
+                f'No STM32 feedback received after {elapsed:.3f} s. '
+                'Expected FB,<seq>,<left_count>,<right_count>,<dt_ms>,<status>.')
+        else:
+            self.get_logger().warn(
+                f'No STM32 feedback for {elapsed:.3f} s. '
+                f'Last status={self._last_feedback_status}, '
+                f'last_seq={self._last_feedback_seq}.')
+        self._last_feedback_timeout_warn_time = now
+
+    def _warn_if_count_jump(
+            self,
+            delta_left_count: int,
+            delta_right_count: int,
+            dt: float,
+            now: float):
+        effective_dt = dt if dt > 0.0 else (1.0 / self.send_rate_hz)
+        max_expected_delta = self.max_steps_per_sec * effective_dt * 4.0
+        max_delta = max(abs(delta_left_count), abs(delta_right_count))
+
+        if max_delta <= max_expected_delta:
+            return
+
+        if now - self._last_count_jump_warn_time < self._feedback_warn_period:
+            return
+
+        self.get_logger().warn(
+            'Suspicious feedback count jump: '
+            f'delta_left={delta_left_count}, delta_right={delta_right_count}, '
+            f'dt={dt:.4f}s, threshold={max_expected_delta:.1f} steps.')
+        self._last_count_jump_warn_time = now
 
     def _close_serial(self):
         if self._serial is None:
@@ -274,6 +630,92 @@ class Stm32BridgeNode(Node):
             self.get_logger().info(f'TX: {command}')
             self._last_tx_log_payload = payload
             self._last_tx_log_time = now
+
+    def _compute_steps_per_meter(self) -> float:
+        wheel_circumference = 2.0 * math.pi * self.wheel_radius
+        if wheel_circumference <= 0.0:
+            self.get_logger().warn(
+                'wheel_radius must be > 0. Falling back to 0.095 m.')
+            self.wheel_radius = 0.095
+            wheel_circumference = 2.0 * math.pi * self.wheel_radius
+
+        if self.steps_per_rev <= 0.0:
+            self.get_logger().warn(
+                'steps_per_rev must be > 0. Falling back to 200.')
+            self.steps_per_rev = 200.0
+
+        if self.microstep <= 0.0:
+            self.get_logger().warn(
+                'microstep must be > 0. Falling back to 8.')
+            self.microstep = 8.0
+
+        if self.gear_ratio <= 0.0:
+            self.get_logger().warn(
+                'gear_ratio must be > 0. Falling back to 10.')
+            self.gear_ratio = 10.0
+
+        return (
+            self.steps_per_rev *
+            self.microstep *
+            self.gear_ratio /
+            wheel_circumference
+        )
+
+    def _read_diagonal_parameter(
+            self,
+            name: str,
+            default: Sequence[float]) -> Sequence[float]:
+        value = self.get_parameter(name).value
+        raw_values = value
+
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith('[') and stripped.endswith(']'):
+                stripped = stripped[1:-1]
+            raw_values = [
+                item.strip()
+                for item in stripped.split(',')
+                if item.strip()
+            ]
+
+        try:
+            diagonal = [float(item) for item in raw_values]
+        except (TypeError, ValueError):
+            self.get_logger().warn(
+                f'{name} must be a 6-value numeric list. Using defaults.')
+            return list(default)
+
+        if len(diagonal) != 6:
+            self.get_logger().warn(
+                f'{name} must contain exactly 6 values. Using defaults.')
+            return list(default)
+
+        return diagonal
+
+    @staticmethod
+    def _diagonal_to_covariance(diagonal: Sequence[float]) -> list:
+        covariance = [0.0] * 36
+        for index, value in zip((0, 7, 14, 21, 28, 35), diagonal):
+            covariance[index] = float(value)
+        return covariance
+
+    @staticmethod
+    def _diff_signed_32(current: int, previous: int) -> int:
+        delta = current - previous
+        if delta > INT32_HALF_RANGE:
+            delta -= INT32_MODULO
+        elif delta < -INT32_HALF_RANGE:
+            delta += INT32_MODULO
+        return delta
+
+    @staticmethod
+    def _normalize_angle(angle: float) -> float:
+        return math.atan2(math.sin(angle), math.cos(angle))
+
+    @staticmethod
+    def _yaw_to_quaternion(yaw: float) -> Tuple[float, float, float, float]:
+        half_yaw = yaw * 0.5
+        return 0.0, 0.0, math.sin(half_yaw), math.cos(half_yaw)
 
     def destroy_node(self):
         try:
