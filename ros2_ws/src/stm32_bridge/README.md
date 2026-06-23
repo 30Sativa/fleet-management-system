@@ -102,12 +102,17 @@ odom -> base_link
 Default drivetrain values match the current firmware notes:
 
 ```text
-wheel_radius = 0.095 m
-steps_per_rev = 200
-microstep = 8
-gear_ratio = 10
-steps_per_meter ~= 26809
+wheel_radius = 0.095 m       # = 190 mm wheel diameter / 2
+steps_per_rev = 200          # 57EBP98ALC, 1.8 deg/step
+microstep = 8                # 200 * 8 = 1600 = HBS57H driver pulse/rev
+gear_ratio = 10              # F57-L1-10-P2 planetary gearbox
+steps_per_meter ~= 26805     # 1600 * 10 / (pi * 0.190)
 ```
+
+These match the physical constants compiled into the firmware
+(`firmware/.../motor_driver.h`: `DRIVER_PULSE_PER_REV=1600`, `GEAR_RATIO=10`,
+`WHEEL_DIAMETER_MM=190`). If you change a DIP switch or the gearbox, update both
+the firmware header and these parameters.
 
 ## Environment
 
@@ -209,8 +214,10 @@ ros2 run tf2_tools view_frames
 | `max_wheel_speed_mm_s` | `250.0` | Clamp per-wheel command, mm/s |
 | `send_rate_hz` | `20.0` | Periodic serial send/read rate |
 | `cmd_timeout` | `0.5` | Send STOP after this many seconds without `/cmd_vel` |
-| `invert_left` | `false` | Flip left command sign and feedback delta sign |
-| `invert_right` | `false` | Flip right command sign and feedback delta sign |
+| `invert_left` | `false` | Flip left **command** sign only (does not affect odometry) |
+| `invert_right` | `false` | Flip right **command** sign only (does not affect odometry) |
+| `odom_invert_left` | `false` | Flip left feedback count sign for **odometry only** |
+| `odom_invert_right` | `false` | Flip right feedback count sign for **odometry only** |
 | `speed_scale` | `0.3` | Scale wheel commands before invert and clamp |
 | `publish_odom` | `true` | Publish `/odom` |
 | `publish_tf` | `true` | Broadcast `odom -> base_link` |
@@ -231,7 +238,10 @@ ros2 run tf2_tools view_frames
 3. Check that `feedback_counts_are_cumulative` matches the firmware.
 4. Check drivetrain parameters: `wheel_radius`, `steps_per_rev`, `microstep`,
    and `gear_ratio`.
-5. If signs are reversed, try `invert_left:=true` or `invert_right:=true`.
+5. If the pose runs in the wrong direction (e.g. driving forward decreases `x`),
+   the **count** sign is reversed. Fix odometry only with
+   `odom_invert_left:=true` / `odom_invert_right:=true`. Do **not** use
+   `invert_left/right` for this — those flip the motor command, not odometry.
 
 ## Test Checklist
 
@@ -244,6 +254,37 @@ ros2 run tf2_tools view_frames
 - Incoming `FB,...` lines update `/odom`.
 - `tf2_echo odom base_link` shows a live transform.
 - Serial disconnect/reconnect does not crash the node.
-- If one wheel direction is wrong, set `invert_left` or `invert_right`.
+- If one wheel spins the wrong way, set `invert_left`/`invert_right` (command).
+  If the pose integrates the wrong way, set `odom_invert_left`/`odom_invert_right`
+  (odometry). These are independent.
 - If the robot is too slow after bench testing, increase `speed_scale`, increase
   `max_wheel_speed_mm_s`, or increase the teleop speed.
+
+## Assumptions and Limitations
+
+Read these before trusting `/odom` on the real robot.
+
+- **Open-loop step odometry, not a real encoder.** The firmware count increments
+  once per STEP pulse it generates (`count += direction`), not per measured wheel
+  rotation. If a wheel slips or the motor stalls, the count still rises and the
+  pose drifts. Odometry is only as good as the steps actually translating into
+  motion. A real quadrature encoder or IMU fusion is a Stage 4 task.
+
+- **`dt_ms` is "time since last successfully-sent feedback", not a fixed period.**
+  In firmware, `dt_ms = now - last_feedback_sent_ms`. If a USB CDC frame is
+  dropped, the next delivered frame reports a larger `dt_ms` that still matches
+  the true gap the bridge observed, so `velocity = delta_s / dt` stays correct.
+  The downside: if the firmware is ever changed to emit a *fixed* period while
+  packets are still being dropped, the reported velocity would become wrong. The
+  bridge already falls back to ROS-clock dt when `dt_ms <= 0`.
+
+- **Command invert vs. odometry invert are separate.** `invert_left/right` flip
+  only the motor command. Because the firmware derives its step direction from the
+  (already inverted) command, the feedback count direction already follows the
+  physical wheel, so the bridge does **not** reuse the command invert for
+  odometry. Use `odom_invert_left/right` only if the count sign is genuinely
+  reversed relative to physical forward motion.
+
+- **`reset_odom_on_start` zeroes the count baseline, not the pose.** Pose
+  (`x/y/theta`) always starts at 0 on node startup; the first cumulative feedback
+  sample is consumed as the baseline so the initial jump is not integrated.

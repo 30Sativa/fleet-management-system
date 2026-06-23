@@ -23,6 +23,8 @@ def generate_launch_description():
     cmd_timeout = LaunchConfiguration('cmd_timeout')
     invert_left = LaunchConfiguration('invert_left')
     invert_right = LaunchConfiguration('invert_right')
+    odom_invert_left = LaunchConfiguration('odom_invert_left')
+    odom_invert_right = LaunchConfiguration('odom_invert_right')
     speed_scale = LaunchConfiguration('speed_scale')
     publish_odom = LaunchConfiguration('publish_odom')
     publish_tf = LaunchConfiguration('publish_tf')
@@ -90,6 +92,14 @@ def generate_launch_description():
             default_value='false',
             description='Invert right wheel command sign.'),
         DeclareLaunchArgument(
+            'odom_invert_left',
+            default_value='false',
+            description='Invert left feedback count sign for odometry only.'),
+        DeclareLaunchArgument(
+            'odom_invert_right',
+            default_value='false',
+            description='Invert right feedback count sign for odometry only.'),
+        DeclareLaunchArgument(
             'speed_scale',
             default_value='0.3',
             description='Scale wheel commands before invert and clamp.'),
@@ -155,6 +165,10 @@ def generate_launch_description():
                 'cmd_timeout': ParameterValue(cmd_timeout, value_type=float),
                 'invert_left': ParameterValue(invert_left, value_type=bool),
                 'invert_right': ParameterValue(invert_right, value_type=bool),
+                'odom_invert_left': ParameterValue(
+                    odom_invert_left, value_type=bool),
+                'odom_invert_right': ParameterValue(
+                    odom_invert_right, value_type=bool),
                 'speed_scale': ParameterValue(speed_scale, value_type=float),
                 'publish_odom': ParameterValue(publish_odom, value_type=bool),
                 'publish_tf': ParameterValue(publish_tf, value_type=bool),

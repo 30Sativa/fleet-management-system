@@ -61,6 +61,8 @@ class Stm32BridgeNode(Node):
         self.declare_parameter('cmd_timeout', 0.5)
         self.declare_parameter('invert_left', False)
         self.declare_parameter('invert_right', False)
+        self.declare_parameter('odom_invert_left', False)
+        self.declare_parameter('odom_invert_right', False)
         self.declare_parameter('speed_scale', 0.3)
         self.declare_parameter('publish_odom', True)
         self.declare_parameter('publish_tf', True)
@@ -94,6 +96,10 @@ class Stm32BridgeNode(Node):
         self.cmd_timeout = float(self.get_parameter('cmd_timeout').value)
         self.invert_left = bool(self.get_parameter('invert_left').value)
         self.invert_right = bool(self.get_parameter('invert_right').value)
+        self.odom_invert_left = bool(
+            self.get_parameter('odom_invert_left').value)
+        self.odom_invert_right = bool(
+            self.get_parameter('odom_invert_right').value)
         self.speed_scale = float(self.get_parameter('speed_scale').value)
         self.publish_odom = bool(self.get_parameter('publish_odom').value)
         self.publish_tf = bool(self.get_parameter('publish_tf').value)
@@ -194,6 +200,8 @@ class Stm32BridgeNode(Node):
             f'max_wheel_speed_mm_s={self.max_wheel_speed_mm_s:.1f}, '
             f'speed_scale={self.speed_scale:.3f}, '
             f'invert_left={self.invert_left}, invert_right={self.invert_right}, '
+            f'odom_invert_left={self.odom_invert_left}, '
+            f'odom_invert_right={self.odom_invert_right}, '
             f'publish_odom={self.publish_odom}, publish_tf={self.publish_tf}, '
             f'odom_frame={self.odom_frame}, base_frame={self.base_frame}, '
             'command_format=CMD/STOP mm/s, feedback_format=FB seq/count/dt/status')
@@ -412,9 +420,16 @@ class Stm32BridgeNode(Node):
             self._publish_odometry(now_ros, 0.0, 0.0)
             return
 
-        if self.invert_left:
+        # NOTE: do NOT reuse invert_left/invert_right here. The firmware counts
+        # steps as `count += direction`, where direction already follows the
+        # sign of the (already-inverted) wheel command. So the feedback count
+        # direction tracks the *physical* wheel motion. Re-applying the command
+        # invert would cancel out and make the pose run backwards. Use the
+        # dedicated odom_invert_* parameters only when the firmware's count sign
+        # is genuinely reversed relative to physical forward motion.
+        if self.odom_invert_left:
             delta_left_count = -delta_left_count
-        if self.invert_right:
+        if self.odom_invert_right:
             delta_right_count = -delta_right_count
 
         self._warn_if_count_jump(delta_left_count, delta_right_count, dt,
