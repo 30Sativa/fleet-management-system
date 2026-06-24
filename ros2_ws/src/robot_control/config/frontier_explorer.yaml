@@ -1,0 +1,16 @@
+simple_frontier_explorer:
+  ros__parameters:
+    map_topic: /map
+    mode_state_topic: /robot_mode_state
+    emergency_stop_state_topic: /emergency_stop_state
+    navigate_action: navigate_to_pose
+    global_frame: map
+    robot_base_frame: base_footprint
+    explore_period: 2.0
+    goal_timeout: 45.0
+    goal_accept_timeout: 5.0
+    free_threshold: 20
+    occupied_threshold: 65
+    min_frontier_size: 8
+    min_goal_distance: 0.35
+    cluster_size_weight: 0.05

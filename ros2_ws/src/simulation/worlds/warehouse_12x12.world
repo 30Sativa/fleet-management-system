@@ -1,0 +1,104 @@
+<?xml version="1.0" ?>
+<!--
+  warehouse_12x12.world
+  Enclosed 12x12 m room with interior partition walls and doorway gaps.
+  Designed for frontier-based exploration: LiDAR hits walls, leaving
+  unknown space behind partitions for the explorer to discover.
+  Walls: 0.2 m thick, 1.0 m tall boxes. Origin at room center (0,0).
+-->
+<sdf version="1.6">
+  <world name="warehouse_12x12">
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <physics name="default_physics" type="ode">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>250</real_time_update_rate>
+    </physics>
+
+    <model name="room_walls">
+      <static>true</static>
+
+      <!-- Outer perimeter: room is 12x12, inner faces near plus/minus 6 -->
+      <link name="wall_north">
+        <pose>0 6 0.5 0 0 0</pose>
+        <collision name="c"><geometry><box><size>12.4 0.2 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>12.4 0.2 1.0</size></box></geometry>
+          <material><ambient>0.7 0.7 0.7 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="wall_south">
+        <pose>0 -6 0.5 0 0 0</pose>
+        <collision name="c"><geometry><box><size>12.4 0.2 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>12.4 0.2 1.0</size></box></geometry>
+          <material><ambient>0.7 0.7 0.7 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="wall_east">
+        <pose>6 0 0.5 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.2 12.0 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.2 12.0 1.0</size></box></geometry>
+          <material><ambient>0.7 0.7 0.7 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="wall_west">
+        <pose>-6 0 0.5 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.2 12.0 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.2 12.0 1.0</size></box></geometry>
+          <material><ambient>0.7 0.7 0.7 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material>
+        </visual>
+      </link>
+
+      <!-- Interior partition 1: vertical wall near x=-2, doorway gap near north -->
+      <link name="part1">
+        <pose>-2 -1.75 0.5 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.2 8.5 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.2 8.5 1.0</size></box></geometry>
+          <material><ambient>0.55 0.6 0.75 1</ambient><diffuse>0.55 0.6 0.75 1</diffuse></material>
+        </visual>
+      </link>
+
+      <!-- Interior partition 2: horizontal wall near y=+2, gap near west corner -->
+      <link name="part2">
+        <pose>2.5 2 0.5 0 0 0</pose>
+        <collision name="c"><geometry><box><size>6.8 0.2 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>6.8 0.2 1.0</size></box></geometry>
+          <material><ambient>0.55 0.6 0.75 1</ambient><diffuse>0.55 0.6 0.75 1</diffuse></material>
+        </visual>
+      </link>
+
+      <!-- Interior partition 3: short wall in lower-right quadrant -->
+      <link name="part3">
+        <pose>2.5 -3 0.5 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.2 5.0 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.2 5.0 1.0</size></box></geometry>
+          <material><ambient>0.55 0.6 0.75 1</ambient><diffuse>0.55 0.6 0.75 1</diffuse></material>
+        </visual>
+      </link>
+
+      <!-- Obstacle crates -->
+      <link name="crate1">
+        <pose>4 -1 0.4 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.8 0.8 0.8</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.8 0.8 0.8</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient><diffuse>0.6 0.4 0.2 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="crate2">
+        <pose>-4 3.5 0.4 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.8 0.8 0.8</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.8 0.8 0.8</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient><diffuse>0.6 0.4 0.2 1</diffuse></material>
+        </visual>
+      </link>
+
+    </model>
+
+  </world>
+</sdf>

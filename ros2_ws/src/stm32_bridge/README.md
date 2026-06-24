@@ -41,9 +41,10 @@ CMD,2,-300,300
 STOP,3
 ```
 
-The bridge sends `CMD,...` for normal motion and the firmware's dedicated
-`STOP,<seq>` for watchdog timeout, idle before the first `/cmd_vel`, and
-shutdown. Speed units are `mm/s`, not step/s.
+The bridge sends `CMD,...` for normal non-zero motion and the firmware's
+dedicated `STOP,<seq>` for zero Twist commands, watchdog timeout, idle before
+the first `/cmd_vel`, feedback timeout safety, and shutdown. Speed units are
+`mm/s`, not step/s.
 
 The current firmware sends feedback in this format:
 
@@ -205,7 +206,7 @@ ros2 run tf2_tools view_frames
 |---|---:|---|
 | `port` | `/dev/ttyACM0` | STM32 USB CDC serial port |
 | `baudrate` | `115200` | Serial baudrate |
-| `wheel_base` | `0.60` | Distance between wheels, meters |
+| `wheel_base` | `0.46` | Distance between wheels, meters (center-to-center) |
 | `wheel_radius` | `0.095` | Wheel radius, meters |
 | `steps_per_rev` | `200.0` | Motor full steps per revolution |
 | `microstep` | `8.0` | HBS57H microstep multiplier |

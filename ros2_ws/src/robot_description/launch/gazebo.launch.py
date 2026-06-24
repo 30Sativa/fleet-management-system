@@ -11,10 +11,11 @@ import re
 import subprocess
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch import LaunchDescription
-from launch.actions import (IncludeLaunchDescription, RegisterEventHandler,
-                            SetEnvironmentVariable)
+from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
+                            RegisterEventHandler, SetEnvironmentVariable)
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
@@ -22,6 +23,9 @@ def generate_launch_description():
     pkg = get_package_share_directory('robot_description')
     gazebo_ros = get_package_share_directory('gazebo_ros')
     xacro_file = os.path.join(pkg, 'urdf', 'robot.urdf.xacro')
+
+    # Optional Gazebo world (.world). Empty -> default empty world.
+    world = LaunchConfiguration('world')
 
     # ===== Bao Gazebo cho tim plugin .so (mac dinh GAZEBO_PLUGIN_PATH thuong rong) =====
     ros_lib = os.path.join(get_package_prefix('gazebo_ros2_control'), 'lib')
@@ -49,6 +53,7 @@ def generate_launch_description():
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(gazebo_ros, 'launch', 'gazebo.launch.py')),
+        launch_arguments={'world': world}.items(),
     )
 
     spawn = Node(
@@ -73,6 +78,9 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'world', default_value='',
+            description='Path to a Gazebo .world file. Empty = empty world.'),
         set_plugin_path,
         rsp,
         gazebo,

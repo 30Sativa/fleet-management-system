@@ -50,7 +50,7 @@ class Stm32BridgeNode(Node):
 
         self.declare_parameter('port', '/dev/ttyACM0')
         self.declare_parameter('baudrate', 115200)
-        self.declare_parameter('wheel_base', 0.60)
+        self.declare_parameter('wheel_base', 0.46)
         self.declare_parameter('wheel_radius', 0.095)
         self.declare_parameter('steps_per_rev', 200.0)
         self.declare_parameter('microstep', 8.0)
@@ -161,6 +161,7 @@ class Stm32BridgeNode(Node):
         self._seq = 0
         self._left_mm_s = 0
         self._right_mm_s = 0
+        self._command_is_stop = True
         self._last_cmd_time: Optional[float] = None
         self._timed_out = False
         self._last_tx_log_time = 0.0
@@ -232,6 +233,10 @@ class Stm32BridgeNode(Node):
 
         self._left_mm_s = int(round(left_mm_s))
         self._right_mm_s = int(round(right_mm_s))
+        self._command_is_stop = (
+            self._is_zero_twist(msg) or
+            (self._left_mm_s == 0 and self._right_mm_s == 0)
+        )
         self._last_cmd_time = time.monotonic()
         self._timed_out = False
 
@@ -254,6 +259,8 @@ class Stm32BridgeNode(Node):
                 self.get_logger().warn(
                     f'No /cmd_vel for {self.cmd_timeout:.3f} s. Sending stop.')
                 self._timed_out = True
+            self._send_stop()
+        elif self._command_is_stop:
             self._send_stop()
         else:
             self._send_command(self._left_mm_s, self._right_mm_s)
@@ -348,6 +355,7 @@ class Stm32BridgeNode(Node):
             self.get_logger().error(
                 f'Serial write failed on {self.port}: {exc}. '
                 'Closing port and waiting for reconnect.')
+            self._enter_safe_stop_state('serial_write_failed')
             self._close_serial()
             return False
 
@@ -602,6 +610,8 @@ class Stm32BridgeNode(Node):
                 f'Last status={self._last_feedback_status}, '
                 f'last_seq={self._last_feedback_seq}.')
         self._last_feedback_timeout_warn_time = now
+        self._enter_safe_stop_state('feedback_timeout')
+        self._send_stop()
 
     def _warn_if_count_jump(
             self,
@@ -636,6 +646,22 @@ class Stm32BridgeNode(Node):
             self.get_logger().warn(f'Error while closing serial port: {exc}')
         finally:
             self._serial = None
+
+    def _enter_safe_stop_state(self, reason: str):
+        was_active = (
+            self._last_cmd_time is not None or
+            self._left_mm_s != 0 or
+            self._right_mm_s != 0
+        )
+        self._left_mm_s = 0
+        self._right_mm_s = 0
+        self._command_is_stop = True
+        self._last_cmd_time = None
+        self._timed_out = True
+
+        if was_active:
+            self.get_logger().warn(
+                f'Entering safe stop state because of {reason}.')
 
     def _log_tx(self, command: str, payload: tuple):
         now = time.monotonic()
@@ -731,6 +757,18 @@ class Stm32BridgeNode(Node):
     def _yaw_to_quaternion(yaw: float) -> Tuple[float, float, float, float]:
         half_yaw = yaw * 0.5
         return 0.0, 0.0, math.sin(half_yaw), math.cos(half_yaw)
+
+    @staticmethod
+    def _is_zero_twist(msg: Twist) -> bool:
+        values = (
+            msg.linear.x,
+            msg.linear.y,
+            msg.linear.z,
+            msg.angular.x,
+            msg.angular.y,
+            msg.angular.z,
+        )
+        return all(math.isclose(value, 0.0, abs_tol=1e-9) for value in values)
 
     def destroy_node(self):
         try:

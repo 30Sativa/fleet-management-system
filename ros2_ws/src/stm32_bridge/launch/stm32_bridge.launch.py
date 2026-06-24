@@ -49,8 +49,9 @@ def generate_launch_description():
             description='Serial baudrate. USB CDC may ignore it, but keep it stable.'),
         DeclareLaunchArgument(
             'wheel_base',
-            default_value='0.60',
-            description='Distance between left and right wheels in meters.'),
+            default_value='0.46',
+            description='Distance between left and right wheels in meters '
+                        '(center-to-center: 55cm frame - 2x4.5cm inset = 46cm).'),
         DeclareLaunchArgument(
             'wheel_radius',
             default_value='0.095',
@@ -110,15 +111,16 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'publish_tf',
             default_value='true',
-            description='Broadcast odom -> base_link TF.'),
+            description='Broadcast odom -> base_frame TF.'),
         DeclareLaunchArgument(
             'odom_frame',
             default_value='odom',
             description='Odometry parent frame.'),
         DeclareLaunchArgument(
             'base_frame',
-            default_value='base_link',
-            description='Robot base child frame.'),
+            default_value='base_footprint',
+            description='Robot base child frame for odom TF. Must match '
+                        'SLAM/Nav2 base_frame (base_footprint in this stack).'),
         DeclareLaunchArgument(
             'feedback_timeout',
             default_value='1.0',

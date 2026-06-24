@@ -8,6 +8,9 @@ vehicle:
 - `ros2_ws/` is the ROS2 workspace used by the miniPC.
 - `ros2_ws/src/stm32_bridge` is the current real-robot bridge from `/cmd_vel`
   to the STM32 motor controller over USB CDC serial.
+- `ros2_ws/src/robot_control` contains the real-robot mode manager, launch
+  files for manual/manual-mapping/auto-explore, Nav2/SLAM configs, and a simple
+  frontier explorer.
 - `ros2_ws/src/robot_description` contains the URDF/xacro robot model and
   simulation/display launch files.
 - `firmware/stm32/motor_controller` contains the STM32G431 firmware project for
@@ -50,6 +53,24 @@ Run the bridge from inside the container:
 
 ```bash
 ros2 launch stm32_bridge stm32_bridge.launch.py port:=/dev/ttyACM0 baudrate:=115200
+```
+
+Run the real-robot manual stack:
+
+```bash
+ros2 launch robot_control manual_mode.launch.py port:=/dev/ttyACM0 baudrate:=115200
+```
+
+Run manual mapping:
+
+```bash
+ros2 launch robot_control manual_mapping.launch.py port:=/dev/ttyACM0 lidar_serial_port:=/dev/ttyUSB0
+```
+
+Run auto explore:
+
+```bash
+ros2 launch robot_control auto_explore.launch.py port:=/dev/ttyACM0 lidar_serial_port:=/dev/ttyUSB0
 ```
 
 ## How To Push Through GitHub Actions
