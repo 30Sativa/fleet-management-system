@@ -14,6 +14,8 @@ simple_frontier_explorer:
     # Loosened so exploration can bootstrap from a small initial map:
     #  - small clusters (>=3 cells) still count as a frontier
     #  - goals just 0.2 m away are allowed so the robot starts moving early
-    min_frontier_size: 3
-    min_goal_distance: 0.2
-    cluster_size_weight: 0.05
+    min_frontier_size: 4
+    min_goal_distance: 0.4
+    # Higher weight = prefer bigger open frontiers over tiny ones tucked in
+    # corners, so the robot spends less time wedging into dead-end nooks.
+    cluster_size_weight: 0.15
