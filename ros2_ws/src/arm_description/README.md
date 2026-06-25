@@ -108,3 +108,20 @@ la SO UOC LUONG. Xem Gazebo roi sua cho gripper toi dung lon. Moi tu the la
 > Day la tang 1 (dieu khien khop) + kich ban co dinh. Muon "tu nhan dien va
 > gap" can them: dong hoc nghich (MoveIt), camera + nhan dien vat, va pipeline
 > pick. Do la cac buoc nang cao lam sau.
+
+## All-in-one: 1 lenh mo Gazebo + tu gap
+
+Khoi can 2 terminal. Mot lenh la Gazebo mo + tay tu dien chuoi gap:
+
+```bash
+cd ~/ros2_ws
+colcon build --packages-select arm_description
+source install/setup.bash
+ros2 launch arm_description gazebo_arm_demo.launch.py
+```
+
+Tat tu chay demo (chi mo Gazebo, dieu khien tay tay):
+
+```bash
+ros2 launch arm_description gazebo_arm_demo.launch.py auto_demo:=false
+```
