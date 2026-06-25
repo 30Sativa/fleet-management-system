@@ -86,3 +86,25 @@ ros2 topic pub --once /arm_controller/joint_trajectory trajectory_msgs/msg/Joint
 > Neu can kep chac de demo, them plugin `gazebo_grasp_fix` hoac tang ma sat
 > (da set mu1/mu2 = 1.5 cho ngam). Day la van de chung cua sim, khong phai loi
 > cau hinh.
+
+## Demo gap theo kich ban co dinh (pick_demo)
+
+Robot arm KHONG tu nhan dien roi gap. Phai ra lenh cho no. `pick_demo` la
+chuoi dong tac DAT SAN (lon o vi tri biet truoc): home -> vuon -> ha Z ->
+kep -> nang -> xoay -> tha -> home. Khong can camera/AI.
+
+Chay (sau khi da `ros2 launch arm_description gazebo_arm.launch.py`):
+
+```bash
+# terminal khac
+source ~/ros2_ws/install/setup.bash
+ros2 run arm_description pick_demo
+```
+
+Tinh chinh: cac tu the (goc khop) trong `scripts/pick_demo.py` (bien POSES)
+la SO UOC LUONG. Xem Gazebo roi sua cho gripper toi dung lon. Moi tu the la
+[J_z, J1, J2, J_wrist, J_grip], J_grip=0 khep / 0.05 mo.
+
+> Day la tang 1 (dieu khien khop) + kich ban co dinh. Muon "tu nhan dien va
+> gap" can them: dong hoc nghich (MoveIt), camera + nhan dien vat, va pipeline
+> pick. Do la cac buoc nang cao lam sau.

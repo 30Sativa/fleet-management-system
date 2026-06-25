@@ -28,3 +28,13 @@ arm_controller:
       - position
       - velocity
     allow_partial_joints_goal: true
+    # Cho phep bat dau ngay ca khi chua co state ban dau hoan chinh
+    open_loop_control: false
+    # PID/gains de gazebo_ros2_control bam vi tri (BAT BUOC cho position
+    # command interface tren Gazebo Classic). Thieu cai nay -> tay dung im.
+    gains:
+      J_z:     {p: 200.0, i: 1.0, d: 10.0}
+      J1:      {p: 100.0, i: 1.0, d: 5.0}
+      J2:      {p: 100.0, i: 1.0, d: 5.0}
+      J_wrist: {p: 50.0,  i: 0.5, d: 2.0}
+      J_grip:  {p: 100.0, i: 1.0, d: 5.0}
