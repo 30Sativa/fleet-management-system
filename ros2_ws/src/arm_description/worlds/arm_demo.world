@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!-- The gioi Gazebo don gian: mat dat + anh sang + 1 LON nho de tay tap kep -->
+<sdf version="1.6">
+  <world name="arm_demo">
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+
+    <!-- vat de kep: hinh tru nhu lon nuoc, dat truoc tay -->
+    <model name="can">
+      <pose>0.45 0 0.06 0 0 0</pose>
+      <link name="link">
+        <inertial>
+          <mass>0.1</mass>
+          <inertia><ixx>0.0002</ixx><iyy>0.0002</iyy><izz>0.0001</izz>
+                   <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+        </inertial>
+        <collision name="c">
+          <geometry><cylinder><radius>0.033</radius><length>0.12</length></cylinder></geometry>
+          <surface><friction><ode><mu>1.5</mu><mu2>1.5</mu2></ode></friction></surface>
+        </collision>
+        <visual name="v">
+          <geometry><cylinder><radius>0.033</radius><length>0.12</length></cylinder></geometry>
+          <material><ambient>0.8 0.2 0.2 1</ambient><diffuse>0.8 0.2 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>

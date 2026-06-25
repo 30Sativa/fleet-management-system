@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<!-- =========================================================================
+     arm_ros2_control.xacro
+     ros2_control + Gazebo plugin RIENG cho tay SCARA.
+     Tach biet hoan toan voi xe. Chi dung khi chay Gazebo (sim).
+     Khop dieu khien: J_z, J1, J2, J_wrist, J_grip.
+     J_grip_mirror la mimic -> Gazebo tu nhai theo J_grip, khong khai bao.
+     ========================================================================= -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="arm_ros2_control">
+
+    <ros2_control name="ScaraArmSystem" type="system">
+      <hardware>
+        <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+      </hardware>
+
+      <joint name="J_z">
+        <command_interface name="position">
+          <param name="min">-0.40</param>
+          <param name="max">0.0</param>
+        </command_interface>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="J1">
+        <command_interface name="position">
+          <param name="min">-3.14159</param>
+          <param name="max">3.14159</param>
+        </command_interface>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="J2">
+        <command_interface name="position">
+          <param name="min">-3.14159</param>
+          <param name="max">3.14159</param>
+        </command_interface>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="J_wrist">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="J_grip">
+        <command_interface name="position">
+          <param name="min">0.0</param>
+          <param name="max">0.10</param>
+        </command_interface>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+    </ros2_control>
+
+    <!-- Gazebo plugin: nap controller_manager + doc controller yaml cua TAY -->
+    <gazebo>
+      <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+        <robot_param>robot_description</robot_param>
+        <robot_param_node>robot_state_publisher</robot_param_node>
+        <parameters>$(find arm_description)/config/arm_controllers.yaml</parameters>
+      </plugin>
+    </gazebo>
+
+  </xacro:macro>
+
+  <!-- ===== Gazebo material + vat ly cho cac link (mau + ma sat gripper) ===== -->
+  <xacro:macro name="arm_gazebo_props">
+    <gazebo reference="arm_base_link"><material>Gazebo/Blue</material></gazebo>
+    <gazebo reference="arm_z_link"><material>Gazebo/Blue</material></gazebo>
+    <gazebo reference="arm_link1"><material>Gazebo/Blue</material></gazebo>
+    <gazebo reference="arm_link2"><material>Gazebo/Blue</material></gazebo>
+    <gazebo reference="arm_wrist"><material>Gazebo/White</material></gazebo>
+    <gazebo reference="arm_gripper_base"><material>Gazebo/White</material></gazebo>
+    <!-- ngam kep: ma sat cao de giu duoc vat -->
+    <gazebo reference="arm_finger_left">
+      <material>Gazebo/White</material>
+      <mu1>1.5</mu1><mu2>1.5</mu2>
+    </gazebo>
+    <gazebo reference="arm_finger_right">
+      <material>Gazebo/White</material>
+      <mu1>1.5</mu1><mu2>1.5</mu2>
+    </gazebo>
+  </xacro:macro>
+
+</robot>

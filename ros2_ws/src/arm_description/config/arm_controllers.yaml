@@ -1,0 +1,30 @@
+# =============================================================================
+# arm_controllers.yaml
+# controller_manager + joint controllers cho TAY SCARA (sim Gazebo).
+# Tach biet voi controller cua xe. Dieu khien 5 khop bang vi tri.
+# =============================================================================
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    use_sim_time: true
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - J_z
+      - J1
+      - J2
+      - J_wrist
+      - J_grip
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_partial_joints_goal: true

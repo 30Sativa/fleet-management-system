@@ -46,3 +46,43 @@ Là tay gắn vào `base_link` xe. Không phải dựng lại tay.
 Các kích thước trong `arm.xacro` (chiều dài cánh tay, hành trình Z, ...) là
 **ước lượng**. Đo lại tay thật rồi sửa các `xacro:property` ở đầu file cho khớp.
 Đây chỉ là mô hình hình học để xem/định vị, chưa phải số đo chính xác.
+
+## Gazebo (sim vat ly) — tach biet voi xe
+
+Mo phong tay co trong luc, va cham, kep duoc vat. KHONG dinh gi toi xe.
+
+Files them cho Gazebo (deu trong package nay):
+
+| File | Vai tro |
+|---|---|
+| `urdf/arm_ros2_control.xacro` | ros2_control + Gazebo plugin cho tay |
+| `urdf/arm_sim.urdf.xacro` | top-level cho Gazebo (tay tren `arm_world`) |
+| `config/arm_controllers.yaml` | controller 5 khop (JointTrajectoryController) |
+| `worlds/arm_demo.world` | the gioi co 1 lon do de tay tap kep |
+| `launch/gazebo_arm.launch.py` | spawn tay + nap controller |
+
+Chay:
+
+```bash
+cd ~/ros2_ws
+colcon build --packages-select arm_description
+source install/setup.bash
+ros2 launch arm_description gazebo_arm.launch.py
+```
+
+Dieu khien tay (dua 5 khop toi 1 tu the: J_z, J1, J2, J_wrist, J_grip):
+
+```bash
+ros2 topic pub --once /arm_controller/joint_trajectory trajectory_msgs/msg/JointTrajectory "{
+  joint_names: [J_z, J1, J2, J_wrist, J_grip],
+  points: [ { positions: [-0.1, 0.5, -0.8, 0.0, 0.05], time_from_start: { sec: 2 } } ]
+}"
+```
+
+- `J_grip = 0.0` -> khep (kep) ; `J_grip = 0.05` -> mo.
+- Doi positions de tay vuon toi lon do va kep thu.
+
+> Luu y: kep vat trong Gazebo Classic hay bi truot (gripper 2 ngam don gian).
+> Neu can kep chac de demo, them plugin `gazebo_grasp_fix` hoac tang ma sat
+> (da set mu1/mu2 = 1.5 cho ngam). Day la van de chung cua sim, khong phai loi
+> cau hinh.
