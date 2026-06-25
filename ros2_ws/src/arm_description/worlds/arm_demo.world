@@ -1,13 +1,29 @@
 <?xml version="1.0"?>
-<!-- The gioi Gazebo don gian: mat dat + anh sang + 1 LON nho de tay tap kep -->
+<!-- The gioi Gazebo: mat dat + anh sang + 1 BAN + 1 LON tren ban (ngang tam
+     gripper de tay SCARA gap duoc). Gripper o ~z=0.5 nen ban cao ~0.45. -->
 <sdf version="1.6">
   <world name="arm_demo">
     <include><uri>model://sun</uri></include>
     <include><uri>model://ground_plane</uri></include>
 
-    <!-- vat de kep: hinh tru nhu lon nuoc, dat truoc tay -->
+    <!-- Ban de dat lon, cao 0.45m, dat truoc tay -->
+    <model name="table">
+      <static>true</static>
+      <pose>0.50 0 0.225 0 0 0</pose>
+      <link name="link">
+        <collision name="c">
+          <geometry><box><size>0.25 0.25 0.45</size></box></geometry>
+        </collision>
+        <visual name="v">
+          <geometry><box><size>0.25 0.25 0.45</size></box></geometry>
+          <material><ambient>0.6 0.45 0.3 1</ambient><diffuse>0.6 0.45 0.3 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Lon: dat TREN ban, tam lon o ~z=0.51 (mat ban 0.45 + nua chieu cao lon) -->
     <model name="can">
-      <pose>0.45 0 0.06 0 0 0</pose>
+      <pose>0.50 0 0.51 0 0 0</pose>
       <link name="link">
         <inertial>
           <mass>0.1</mass>

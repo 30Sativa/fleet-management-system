@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 # =============================================================================
-# pick_demo.py
-# Demo GAP THEO KICH BAN CO DINH cho tay SCARA trong Gazebo.
-# Khong dung camera/AI: lon o vi tri biet truoc, tay dien chuoi dong tac:
-#   home -> vuon toi tren lon -> ha xuong -> kep -> nang len -> xoay -> tha.
+# pick_demo.py  (TANG 2 - kich ban co dinh, da can theo toa do thuc)
+# Demo gap lon DAT TREN BAN truoc tay SCARA.
 #
-# Cac tu the la GOC KHOP dat san (hard-code). Tinh chinh cac so trong POSES
-# cho khop voi tay/lon cua ban (xem Gazebo roi sua).
+# DA BIET (do tf2_echo): voi J1=0, J2=0, J_z=0 -> gripper o ~ (x=0.50, z=0.54).
+# Lon tren ban o (x=0.50, z=0.51). Vay gripper DA o ngay tren lon theo x!
+# Chi can ha Z xuong ~3-4cm cho ngam om than lon, roi khep.
 #
-# Chay (sau khi da launch gazebo_arm.launch.py):
-#   ros2 run arm_description pick_demo
-# Hoac:
-#   python3 pick_demo.py
+# Moi tu the: [J_z(m), J1(rad), J2(rad), J_wrist(rad), J_grip(m)]
+#   J_z  : 0 = cao nhat ; cang am cang ha xuong (toi -0.40)
+#   J_grip: 0.05 = mo het ; 0.0 = khep (kep)
 # =============================================================================
 import time
 import rclpy
@@ -21,18 +19,14 @@ from builtin_interfaces.msg import Duration
 
 JOINTS = ['J_z', 'J1', 'J2', 'J_wrist', 'J_grip']
 
-# Moi tu the: [J_z(m), J1(rad), J2(rad), J_wrist(rad), J_grip(m)]
-# J_grip: 0.0 = khep (kep chac) ; 0.05 = mo het.
-# >>> DAY LA SO UOC LUONG - chinh lai sau khi xem Gazebo. <<<
 POSES = [
-    ('1. Home (tu the nghi)',        [ 0.00, 0.0,  0.0, 0.0, 0.05]),
-    ('2. Vuon toi phia lon, mo kep', [ 0.00, 0.0,  0.0, 0.0, 0.05]),
-    ('3. Ha truc Z xuong ngang lon', [-0.30, 0.0,  0.0, 0.0, 0.05]),
-    ('4. Khep gripper (kep lon)',    [-0.30, 0.0,  0.0, 0.0, 0.00]),
-    ('5. Nang lon len',              [-0.05, 0.0,  0.0, 0.0, 0.00]),
-    ('6. Xoay mang lon di cho khac', [-0.05, 1.2,  0.0, 1.5, 0.00]),
-    ('7. Ha xuong, tha lon',         [-0.25, 1.2,  0.0, 1.5, 0.05]),
-    ('8. Ve home',                   [ 0.00, 0.0,  0.0, 0.0, 0.05]),
+    ('1. Home, mo gripper',          [ 0.00, 0.0, 0.0, 0.0, 0.05]),
+    ('2. Ha Z xuong ngang than lon', [-0.06, 0.0, 0.0, 0.0, 0.05]),
+    ('3. Khep gripper (kep lon)',    [-0.06, 0.0, 0.0, 0.0, 0.00]),
+    ('4. Nang lon len',              [ 0.00, 0.0, 0.0, 0.0, 0.00]),
+    ('5. Xoay mang lon sang ben',    [ 0.00, 1.2, 0.0, 0.0, 0.00]),
+    ('6. Ha xuong, tha lon',        [-0.04, 1.2, 0.0, 0.0, 0.05]),
+    ('7. Ve home',                   [ 0.00, 0.0, 0.0, 0.0, 0.05]),
 ]
 
 
@@ -41,7 +35,6 @@ class PickDemo(Node):
         super().__init__('pick_demo')
         self.pub = self.create_publisher(
             JointTrajectory, '/arm_controller/joint_trajectory', 10)
-        # cho publisher ket noi
         time.sleep(1.0)
 
     def go(self, positions, secs):
@@ -57,7 +50,6 @@ class PickDemo(Node):
         for label, pose in POSES:
             self.get_logger().info(f'>>> {label}')
             self.go(pose, secs=2)
-            # cho tay toi noi (2s di chuyen + 0.5s on dinh)
             time.sleep(2.5)
         self.get_logger().info('=== Demo gap xong ===')
 
