@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
 <!-- =========================================================================
      arm.xacro
-     Tay robot SCARA (4 DOF): J1 vai + J2 khuyu + Z nang/ha + gripper kep.
+     Tay robot SCARA (5 DOF): J1 vai + J2 khuyu + Z nang/ha
+     + J_wrist xoay co tay 360 do (motor NEMA17 o dau canh tay 2)
+     + gripper kep 2 ngam cong om vat (mo/khep).
      Don vi: met, kg, rad. Macro doc lap, parent gan tuy y.
      ========================================================================= -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="scara_arm">
@@ -13,9 +15,15 @@
   <xacro:property name="link_thick"   value="0.05"/>
   <xacro:property name="z_travel"     value="0.40"/>
   <xacro:property name="arm_mass"     value="0.5"/>
-  <xacro:property name="grip_open"    value="0.20"/>
-  <xacro:property name="finger_len"   value="0.06"/>
-  <xacro:property name="finger_thick" value="0.02"/>
+
+  <!-- co tay = motor NEMA17 chia xuong + cum trang xoay theo -->
+  <xacro:property name="wrist_motor"  value="0.042"/>  <!-- NEMA17 ~42mm -->
+  <xacro:property name="wrist_len"    value="0.07"/>   <!-- cao cum co tay (motor+de) -->
+
+  <!-- gripper: 2 ngam cong om vat tron -->
+  <xacro:property name="grip_open"    value="0.20"/>   <!-- mo toi da ~20cm -->
+  <xacro:property name="finger_r"     value="0.05"/>   <!-- ban kinh cung ngam -->
+  <xacro:property name="finger_thick" value="0.015"/>
 
   <xacro:macro name="arm_box_inertia" params="m x y z">
     <inertial>
@@ -28,6 +36,7 @@
 
   <material name="arm_blue"><color rgba="0.15 0.35 0.85 1.0"/></material>
   <material name="arm_white"><color rgba="0.95 0.95 0.95 1.0"/></material>
+  <material name="arm_dark"><color rgba="0.15 0.15 0.18 1.0"/></material>
 
   <xacro:macro name="scara_arm" params="parent xyz:='0 0 0' rpy:='0 0 0'">
 
@@ -88,6 +97,12 @@
         <geometry><box size="${link2_len} ${link_thick} ${link_thick}"/></geometry>
         <material name="arm_blue"/>
       </visual>
+      <!-- vo motor NEMA17 o dau canh tay 2, chia xuong -->
+      <visual>
+        <origin xyz="${link2_len} 0 ${-wrist_motor/2}" rpy="0 0 0"/>
+        <geometry><box size="${wrist_motor} ${wrist_motor} ${wrist_motor}"/></geometry>
+        <material name="arm_dark"/>
+      </visual>
       <xacro:arm_box_inertia m="0.2" x="${link2_len}" y="${link_thick}" z="${link_thick}"/>
     </link>
     <joint name="J2" type="revolute">
@@ -98,28 +113,65 @@
       <limit lower="${-pi}" upper="${pi}" effort="10.0" velocity="2.0"/>
     </joint>
 
+    <!-- ===== J_wrist: cum trang xoay 360 do duoi motor (continuous) ===== -->
+    <link name="arm_wrist">
+      <visual>
+        <origin xyz="0 0 ${-wrist_len/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.045" length="${wrist_len}"/></geometry>
+        <material name="arm_white"/>
+      </visual>
+      <xacro:arm_box_inertia m="0.15" x="0.09" y="0.09" z="${wrist_len}"/>
+    </link>
+    <joint name="J_wrist" type="continuous">
+      <parent link="arm_link2"/>
+      <child link="arm_wrist"/>
+      <origin xyz="${link2_len} 0 ${-wrist_motor}" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+    </joint>
+
+    <!-- ===== De gripper (gan duoi cum co tay xoay) ===== -->
     <link name="arm_gripper_base">
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry><box size="0.04 ${grip_open} 0.03"/></geometry>
+        <geometry><box size="0.04 ${grip_open} 0.025"/></geometry>
         <material name="arm_white"/>
       </visual>
-      <xacro:arm_box_inertia m="0.1" x="0.04" y="${grip_open}" z="0.03"/>
+      <xacro:arm_box_inertia m="0.1" x="0.04" y="${grip_open}" z="0.025"/>
     </link>
     <joint name="J_grip_mount" type="fixed">
-      <parent link="arm_link2"/>
+      <parent link="arm_wrist"/>
       <child link="arm_gripper_base"/>
-      <origin xyz="${link2_len} 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 ${-wrist_len}" rpy="0 0 0"/>
     </joint>
 
-    <link name="arm_finger_left">
-      <visual>
-        <origin xyz="${finger_len/2} 0 0" rpy="0 0 0"/>
-        <geometry><box size="${finger_len} ${finger_thick} 0.03"/></geometry>
-        <material name="arm_white"/>
-      </visual>
-      <xacro:arm_box_inertia m="0.03" x="${finger_len}" y="${finger_thick}" z="0.03"/>
-    </link>
+    <!-- ===== 2 ngam CONG om vat tron (prismatic doi xung theo truc Y) =====
+         Moi ngam la 1 cung tron (xap xi bang torus -> dung box cong gia:
+         RViz khong co arc primitive nen dung 3 box ghep thanh cung). -->
+    <xacro:macro name="curved_finger" params="name side">
+      <link name="${name}">
+        <!-- 3 doan box ghep thanh cung om -->
+        <visual>
+          <origin xyz="${finger_r} 0 ${-0.03}" rpy="0 0 0"/>
+          <geometry><box size="0.02 ${finger_thick} 0.06"/></geometry>
+          <material name="arm_white"/>
+        </visual>
+        <visual>
+          <origin xyz="${finger_r*0.7} ${side*finger_r*0.7} ${-0.03}" rpy="0 0 ${side*0.8}"/>
+          <geometry><box size="0.02 ${finger_thick} 0.06"/></geometry>
+          <material name="arm_white"/>
+        </visual>
+        <visual>
+          <origin xyz="${finger_r*0.2} ${side*finger_r} ${-0.03}" rpy="0 0 ${side*1.4}"/>
+          <geometry><box size="0.02 ${finger_thick} 0.06"/></geometry>
+          <material name="arm_white"/>
+        </visual>
+        <xacro:arm_box_inertia m="0.03" x="0.06" y="0.06" z="0.06"/>
+      </link>
+    </xacro:macro>
+
+    <xacro:curved_finger name="arm_finger_left"  side="1"/>
+    <xacro:curved_finger name="arm_finger_right" side="-1"/>
+
     <joint name="J_grip" type="prismatic">
       <parent link="arm_gripper_base"/>
       <child link="arm_finger_left"/>
@@ -127,15 +179,6 @@
       <axis xyz="0 1 0"/>
       <limit lower="0.0" upper="${grip_open/2}" effort="20.0" velocity="0.1"/>
     </joint>
-
-    <link name="arm_finger_right">
-      <visual>
-        <origin xyz="${finger_len/2} 0 0" rpy="0 0 0"/>
-        <geometry><box size="${finger_len} ${finger_thick} 0.03"/></geometry>
-        <material name="arm_white"/>
-      </visual>
-      <xacro:arm_box_inertia m="0.03" x="${finger_len}" y="${finger_thick}" z="0.03"/>
-    </link>
     <joint name="J_grip_mirror" type="prismatic">
       <parent link="arm_gripper_base"/>
       <child link="arm_finger_right"/>
