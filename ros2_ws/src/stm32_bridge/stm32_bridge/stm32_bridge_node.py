@@ -72,6 +72,10 @@ class Stm32BridgeNode(Node):
         self.declare_parameter('feedback_counts_are_cumulative', True)
         self.declare_parameter('feedback_rate_warn_hz', 2.0)
         self.declare_parameter('reset_odom_on_start', True)
+        # = True: dung yaw tu IMU (BNO08x) lam heading odometry (chinh xac hon
+        # encoder vi khong troi do banh truot). Tu dong fallback ve encoder
+        # neu firmware khong gui yaw.
+        self.declare_parameter('use_imu_heading', True)
         self.declare_parameter(
             'odom_covariance_diagonal',
             DEFAULT_ODOM_COVARIANCE_DIAGONAL,
@@ -111,6 +115,8 @@ class Stm32BridgeNode(Node):
             self.get_parameter('feedback_counts_are_cumulative').value)
         self.feedback_rate_warn_hz = float(
             self.get_parameter('feedback_rate_warn_hz').value)
+        self.use_imu_heading = bool(
+            self.get_parameter('use_imu_heading').value)
         self.reset_odom_on_start = bool(
             self.get_parameter('reset_odom_on_start').value)
         self.odom_covariance_diagonal = self._read_diagonal_parameter(
@@ -171,6 +177,9 @@ class Stm32BridgeNode(Node):
         self._x = 0.0
         self._y = 0.0
         self._theta = 0.0
+        # IMU yaw (radian) tu STM32 feedback (truong yaw_cdeg/yaw_valid).
+        self._imu_yaw: Optional[float] = None
+        self._imu_yaw_offset: Optional[float] = None  # de zero hoa luc bat dau
         self._last_left_count: Optional[int] = None
         self._last_right_count: Optional[int] = None
         self._last_feedback_mono: Optional[float] = None
@@ -401,7 +410,13 @@ class Stm32BridgeNode(Node):
         if parsed is None:
             return
 
-        seq, left_count, right_count, dt_ms, status = parsed
+        seq, left_count, right_count, dt_ms, status, yaw_rad = parsed
+
+        # Cap nhat yaw IMU (zero-hoa lan dau de heading bat dau tu 0).
+        if yaw_rad is not None:
+            if self._imu_yaw_offset is None:
+                self._imu_yaw_offset = yaw_rad
+            self._imu_yaw = self._normalize_angle(yaw_rad - self._imu_yaw_offset)
         now_mono = time.monotonic()
         now_ros = self.get_clock().now()
         now_ros_sec = now_ros.nanoseconds / 1e9
@@ -451,10 +466,23 @@ class Stm32BridgeNode(Node):
 
     def _parse_feedback_line(
             self,
-            line: str) -> Optional[Tuple[Optional[int], int, int, float, str]]:
+            line: str
+    ) -> Optional[Tuple[Optional[int], int, int, float, str, Optional[float]]]:
         parts = [part.strip() for part in line.split(',')]
+        yaw_rad: Optional[float] = None
         try:
-            if len(parts) == 6:
+            # Format moi (firmware co IMU): FB,seq,left,right,dt,status,yaw_cdeg,yaw_valid
+            if len(parts) == 8:
+                seq = int(parts[1])
+                left_count = int(parts[2])
+                right_count = int(parts[3])
+                dt_ms = float(parts[4])
+                status = parts[5].upper()
+                yaw_cdeg = int(parts[6])
+                yaw_valid = int(parts[7])
+                if yaw_valid != 0:
+                    yaw_rad = math.radians(yaw_cdeg / 100.0)
+            elif len(parts) == 6:
                 seq = int(parts[1])
                 left_count = int(parts[2])
                 right_count = int(parts[3])
@@ -468,13 +496,13 @@ class Stm32BridgeNode(Node):
                 status = parts[4].upper()
             else:
                 raise ValueError(
-                    f'expected 5 or 6 CSV fields, got {len(parts)}')
+                    f'expected 5, 6 or 8 CSV fields, got {len(parts)}')
         except ValueError as exc:
             self.get_logger().warn(
                 f'Failed to parse STM32 feedback "{line}": {exc}')
             return None
 
-        return seq, left_count, right_count, dt_ms, status
+        return seq, left_count, right_count, dt_ms, status, yaw_rad
 
     def _compute_count_delta(
             self,
@@ -522,12 +550,26 @@ class Stm32BridgeNode(Node):
         right_distance = delta_right_count / self.steps_per_meter
 
         delta_s = (right_distance + left_distance) / 2.0
-        delta_theta = (right_distance - left_distance) / self.wheel_base
-        heading = self._theta + delta_theta / 2.0
+        # delta_theta tu encoder (du phong khi khong co IMU).
+        delta_theta_enc = (right_distance - left_distance) / self.wheel_base
 
-        self._x += delta_s * math.cos(heading)
-        self._y += delta_s * math.sin(heading)
-        self._theta = self._normalize_angle(self._theta + delta_theta)
+        use_imu = self.use_imu_heading and (self._imu_yaw is not None)
+        if use_imu:
+            # Heading lay TRUC TIEP tu IMU (chinh xac hon, khong troi do encoder
+            # truot). delta_theta = chenh lech yaw IMU so voi buoc truoc.
+            prev_theta = self._theta
+            new_theta = self._imu_yaw
+            delta_theta = self._normalize_angle(new_theta - prev_theta)
+            heading = prev_theta + delta_theta / 2.0
+            self._x += delta_s * math.cos(heading)
+            self._y += delta_s * math.sin(heading)
+            self._theta = self._normalize_angle(new_theta)
+        else:
+            delta_theta = delta_theta_enc
+            heading = self._theta + delta_theta / 2.0
+            self._x += delta_s * math.cos(heading)
+            self._y += delta_s * math.sin(heading)
+            self._theta = self._normalize_angle(self._theta + delta_theta)
 
         if dt > 0.0:
             linear_velocity = delta_s / dt

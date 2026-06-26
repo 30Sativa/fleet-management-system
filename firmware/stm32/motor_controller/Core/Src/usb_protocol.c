@@ -2,6 +2,7 @@
 
 #include "main.h"
 #include "motor/motor_driver.h"
+#include "imu/bno08x.h"
 #include "usbd_cdc_if.h"
 
 #include <ctype.h>
@@ -325,13 +326,23 @@ static uint8_t Protocol_TrySendFeedback(uint32_t now_ms)
 {
 	uint32_t dt_ms = now_ms - last_feedback_sent_ms;
 
+	/* Yaw tu IMU (cache). Gui dang centi-do (yaw*100) kieu integer de tranh
+	 * phu thuoc %f. yaw_valid=1 neu IMU da co du lieu.
+	 * Format moi (tuong thich nguoc, them 2 truong cuoi):
+	 *   FB,<seq>,<left>,<right>,<dt_ms>,<status>,<yaw_cdeg>,<yaw_valid> */
+	uint8_t yaw_valid = 0U;
+	float   yaw_deg   = BNO08x_GetLastYaw(&yaw_valid);
+	long    yaw_cdeg  = (long)(yaw_deg * 100.0f);
+
 	return Protocol_TrySendFormatted(
-		"FB,%lu,%ld,%ld,%lu,%s\r\n",
+		"FB,%lu,%ld,%ld,%lu,%s,%ld,%u\r\n",
 		(unsigned long)last_seq,
 		(long)Motor_GetLeftCount(),
 		(long)Motor_GetRightCount(),
 		(unsigned long)dt_ms,
-		Protocol_StatusText());
+		Protocol_StatusText(),
+		yaw_cdeg,
+		(unsigned)yaw_valid);
 }
 
 static uint8_t Protocol_TrySendRaw(const char *text)

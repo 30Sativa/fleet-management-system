@@ -196,24 +196,49 @@ def test_parse_feedback_six_field():
     parsed = Stm32BridgeNode._parse_feedback_line(
         Stm32BridgeNode, 'FB,42,1200,1195,20,OK')
     assert parsed is not None
-    seq, left, right, dt_ms, status = parsed
+    seq, left, right, dt_ms, status, yaw_rad = parsed
     assert seq == 42
     assert left == 1200
     assert right == 1195
     approx(dt_ms, 20.0)
     assert status == 'OK'
+    assert yaw_rad is None
 
 
 def test_parse_feedback_five_field_fallback():
     parsed = Stm32BridgeNode._parse_feedback_line(
         Stm32BridgeNode, 'FB,1200,1195,50,STOP')
     assert parsed is not None
-    seq, left, right, dt_ms, status = parsed
+    seq, left, right, dt_ms, status, yaw_rad = parsed
     assert seq is None
     assert left == 1200
     assert right == 1195
     approx(dt_ms, 50.0)
     assert status == 'STOP'
+    assert yaw_rad is None
+
+
+def test_parse_feedback_eight_field_with_yaw():
+    # FB,seq,left,right,dt,status,yaw_cdeg,yaw_valid  (yaw_cdeg = yaw*100 do)
+    parsed = Stm32BridgeNode._parse_feedback_line(
+        Stm32BridgeNode, 'FB,7,100,110,20,OK,9000,1')
+    assert parsed is not None
+    seq, left, right, dt_ms, status, yaw_rad = parsed
+    assert seq == 7
+    assert left == 100
+    assert right == 110
+    approx(dt_ms, 20.0)
+    assert status == 'OK'
+    # 9000 centi-do = 90 do = pi/2 rad
+    approx(yaw_rad, math.pi / 2, tol=1e-6)
+
+
+def test_parse_feedback_eight_field_yaw_invalid():
+    parsed = Stm32BridgeNode._parse_feedback_line(
+        Stm32BridgeNode, 'FB,7,100,110,20,OK,9000,0')
+    assert parsed is not None
+    _, _, _, _, _, yaw_rad = parsed
+    assert yaw_rad is None
 
 
 def test_parse_feedback_garbage_returns_none():
