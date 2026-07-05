@@ -104,9 +104,9 @@ local_costmap:
           clearing: true
           marking: true
           data_type: LaserScan
-          raytrace_max_range: 8.0
+          raytrace_max_range: 15.0  # RPLiDAR A3M1: 25 m max (white), ~10 m dark objects.
           raytrace_min_range: 0.0
-          obstacle_max_range: 6.0
+          obstacle_max_range: 12.0  # A3M1; keep < raytrace so far obstacles still get cleared.
           obstacle_min_range: 0.12
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
@@ -139,9 +139,9 @@ global_costmap:
           clearing: true
           marking: true
           data_type: LaserScan
-          raytrace_max_range: 8.0
+          raytrace_max_range: 15.0  # RPLiDAR A3M1: 25 m max (white), ~10 m dark objects.
           raytrace_min_range: 0.0
-          obstacle_max_range: 6.0
+          obstacle_max_range: 12.0  # A3M1; keep < raytrace so far obstacles still get cleared.
           obstacle_min_range: 0.12
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"

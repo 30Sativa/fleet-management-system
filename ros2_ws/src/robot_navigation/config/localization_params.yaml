@@ -25,9 +25,10 @@ amcl:
     alpha4: 0.2   # trans noise from rot
     alpha5: 0.2
 
-    # Laser model: RPLiDAR A2M8. Keep in sync with nav2_params.yaml costmaps.
+    # Laser model: RPLiDAR A3M1 (25 m white / ~10 m dark objects).
+    # Keep in sync with nav2_params.yaml costmaps.
     laser_model_type: "likelihood_field"
-    laser_max_range: 8.0
+    laser_max_range: 15.0
     laser_min_range: 0.12
     laser_likelihood_max_dist: 2.0
     max_beams: 60

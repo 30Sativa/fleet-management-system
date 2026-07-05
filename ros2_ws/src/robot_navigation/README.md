@@ -60,5 +60,6 @@ teleop -> /cmd_vel_manual (ưu tiên override khi đang explore)
 - Odom trượt nhiều → tăng `alpha1..alpha4` trong `config/localization_params.yaml`.
 - Bị "lost" giữa chừng → `recovery_alpha_slow: 0.001`, `recovery_alpha_fast: 0.1`
   đã bật recovery re-seeding; có thể tăng `max_particles`.
-- LiDAR A2M8: `laser_max_range: 8.0` — khớp với costmap trong
-  `robot_control/config/nav2_params.yaml`. Đổi LiDAR thì sửa cả hai chỗ.
+- LiDAR A3M1: `laser_max_range: 15.0` (spec 25 m trên bề mặt trắng, ~10 m vật
+  tối) — khớp với costmap trong `robot_control/config/nav2_params.yaml`
+  (raytrace 15 / obstacle 12). Đổi LiDAR thì sửa cả hai chỗ.
