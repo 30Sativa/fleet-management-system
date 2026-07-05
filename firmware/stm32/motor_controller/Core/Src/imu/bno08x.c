@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    bno08x.c
- * @brief   Driver BNO080/085 qua I2C bit-bang (xem bno08x.h).
+ * @brief   Driver BNO080/085 qua I2C bit-bang tren PB6/PB7.
  ******************************************************************************
  */
 #include "imu/bno08x.h"
@@ -17,24 +17,39 @@
 #define BB_RST_PIN  GPIO_PIN_9      /* PA9 */
 #define BB_INT_PIN  GPIO_PIN_8      /* PA8 */
 
+/* De tiet kiem chan STM32: BNO08x chi can SCL/SDA.
+ * RST co the keo len 3V3, INT co the bo trong neu poll bang bit-bang. */
+#ifndef BNO08X_USE_HW_RST
+#define BNO08X_USE_HW_RST 0
+#endif
+
+#ifndef BNO08X_USE_INT_PIN
+#define BNO08X_USE_INT_PIN 0
+#endif
+
 #define BNO_ADDR    0x4A            /* ADD=GND */
 
+#define SHTP_CH_EXECUTABLE             1
+#define EXEC_CMD_RESET                 0x01
 #define SHTP_CH_CONTROL                 2
 #define SHTP_REPORT_PRODUCT_ID_REQUEST  0xF9
 #define SHTP_REPORT_PRODUCT_ID_RESPONSE 0xF8
 
-#define BB_STRETCH_MAX  2000000U    /* gioi han cho clock stretching */
+#define BB_STRETCH_MAX  2000000U
 
-#define SHTP_CH_REPORTS                 3   /* input sensor reports */
+#define SHTP_CH_REPORTS                 3
+#define SHTP_REPORT_BASE_TIMESTAMP      0xFB
 #define SENSOR_REPORTID_ROTATION_VECTOR 0x05
+#define SENSOR_REPORTID_GAME_ROTATION_VECTOR 0x08
+#define SENSOR_REPORTID_ODOM_VECTOR     SENSOR_REPORTID_GAME_ROTATION_VECTOR
 #define SHTP_REPORT_SET_FEATURE_COMMAND 0xFD
-#define Q14_SCALE   (1.0f / 16384.0f)      /* fixed-point Q14 -> float */
+#define Q14_SCALE   (1.0f / 16384.0f)
 
 static uint8_t s_seq[8];
 static float   s_last_yaw = 0.0f;
 static uint8_t s_yaw_valid = 0U;
 
-/* ---- delay & line control (open-drain) ---- */
+/* ---- delay & line control (open-drain by GPIO mode switch) ---- */
 static void bb_delay(void) { for (volatile int i = 0; i < 150; i++) { __NOP(); } }
 
 static void scl_release(void)
@@ -127,6 +142,14 @@ static uint16_t i2c_read(uint8_t addr7, uint8_t *buf, uint16_t n)
     bb_stop();
     return n;
 }
+static uint8_t i2c_ping(uint8_t addr7)
+{
+    uint8_t ack;
+    bb_start();
+    ack = bb_write_byte((uint8_t)((addr7 << 1) | 0U));
+    bb_stop();
+    return ack;
+}
 
 /* ---- SHTP ---- */
 static int shtp_read(uint8_t *buf, uint16_t cap)
@@ -153,13 +176,20 @@ void BNO08x_Init(void)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     memset(s_seq, 0, sizeof(s_seq));
 
+#if BNO08X_USE_HW_RST || BNO08X_USE_INT_PIN
     GPIO_InitTypeDef g = {0};
+#endif
+
+#if BNO08X_USE_HW_RST
     g.Pin = BB_RST_PIN; g.Mode = GPIO_MODE_OUTPUT_PP; g.Pull = GPIO_NOPULL; g.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(BB_RST_PORT, &g);
     HAL_GPIO_WritePin(BB_RST_PORT, BB_RST_PIN, GPIO_PIN_SET);
+#endif
 
+#if BNO08X_USE_INT_PIN
     g.Pin = BB_INT_PIN; g.Mode = GPIO_MODE_INPUT; g.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(BB_RST_PORT, &g);
+#endif
 
     sda_release(); scl_release();
     HAL_Delay(5);
@@ -167,9 +197,18 @@ void BNO08x_Init(void)
 
 static void bno_reset(void)
 {
+#if BNO08X_USE_HW_RST
     HAL_GPIO_WritePin(BB_RST_PORT, BB_RST_PIN, GPIO_PIN_RESET);
     HAL_Delay(20);
     HAL_GPIO_WritePin(BB_RST_PORT, BB_RST_PIN, GPIO_PIN_SET);
+#else
+    uint8_t pkt[5];
+    pkt[0] = 5; pkt[1] = 0;
+    pkt[2] = SHTP_CH_EXECUTABLE;
+    pkt[3] = s_seq[SHTP_CH_EXECUTABLE]++;
+    pkt[4] = EXEC_CMD_RESET;
+    (void)i2c_write(BNO_ADDR, pkt, 5);
+#endif
     HAL_Delay(300);
 }
 
@@ -177,19 +216,12 @@ uint8_t BNO08x_SelfTest(uint8_t *sw_major, uint8_t *sw_minor)
 {
     uint8_t buf[256];
 
-    /* kiem tra ACK */
-    bb_start();
-    uint8_t ack = bb_write_byte((uint8_t)((BNO_ADDR << 1) | 0));
-    bb_stop();
-    if (!ack) return 0U;
+    if (!i2c_ping(BNO_ADDR)) return 0U;
 
-    /* reset de lay goi SHTP sach */
     bno_reset();
 
-    /* nuot cac goi SHTP sau reset (advertisement, reset complete...) */
     for (uint8_t i = 0; i < 4; i++) { (void)shtp_read(buf, sizeof(buf)); HAL_Delay(20); }
 
-    /* hoi Product ID */
     if (!shtp_send_pid_request()) return 0U;
     HAL_Delay(50);
 
@@ -208,31 +240,30 @@ uint8_t BNO08x_SelfTest(uint8_t *sw_major, uint8_t *sw_minor)
     return 0U;
 }
 
+uint8_t BNO08x_Diag(uint32_t *err_code)
+{
+    if (err_code) *err_code = 0U;
+    return i2c_ping(BNO_ADDR) ? 0U : 1U;
+}
 
-/* ===========================================================================
- * Rotation Vector (quaternion)
- * ===========================================================================*/
-
-/* Set Feature Command de bat 1 sensor report dinh ky.
- * report_id = loai report; interval_us = chu ky (micro giay). */
+/* ---- Rotation Vector ---- */
 static uint8_t shtp_set_feature(uint8_t report_id, uint32_t interval_us)
 {
     uint8_t pkt[4 + 17];
     pkt[0]  = (uint8_t)((4 + 17) & 0xFF);
     pkt[1]  = (uint8_t)(((4 + 17) >> 8) & 0xFF);
-    pkt[2]  = SHTP_CH_CONTROL;
     pkt[3]  = s_seq[SHTP_CH_CONTROL]++;
     pkt[4]  = SHTP_REPORT_SET_FEATURE_COMMAND;
     pkt[5]  = report_id;
     pkt[6]  = 0;            /* feature flags */
     pkt[7]  = 0;            /* change sensitivity LSB */
     pkt[8]  = 0;            /* change sensitivity MSB */
-    pkt[9]  = (uint8_t)(interval_us & 0xFF);          /* report interval (us) */
+    pkt[9]  = (uint8_t)(interval_us & 0xFF);
     pkt[10] = (uint8_t)((interval_us >> 8) & 0xFF);
     pkt[11] = (uint8_t)((interval_us >> 16) & 0xFF);
     pkt[12] = (uint8_t)((interval_us >> 24) & 0xFF);
-    pkt[13] = 0; pkt[14] = 0; pkt[15] = 0; pkt[16] = 0;  /* batch interval */
-    pkt[17] = 0; pkt[18] = 0; pkt[19] = 0; pkt[20] = 0;  /* sensor config */
+    pkt[13] = 0; pkt[14] = 0; pkt[15] = 0; pkt[16] = 0;
+    pkt[17] = 0; pkt[18] = 0; pkt[19] = 0; pkt[20] = 0;
     return i2c_write(BNO_ADDR, pkt, 4 + 17);
 }
 
@@ -251,28 +282,12 @@ uint8_t BNO08x_ReadRotationVector(float *qi, float *qj, float *qk, float *qr,
     if (plen <= 0) return 0U;
     if (buf[2] != SHTP_CH_REPORTS) return 0U;
 
-    /* payload bat dau o buf[4]. Cau truc input report:
-     *   [0..4] timebase/header cua SHTP input report
-     *   roi cac report. Rotation Vector report:
-     *     byte0 = 0x05 (report id)
-     *     byte1 = sequence
-     *     byte2 = status
-     *     byte3 = delay
-     *     byte4..5  = qi (Q14, little-endian, signed)
-     *     byte6..7  = qj
-     *     byte8..9  = qk
-     *     byte10..11= qr (real)
-     * Ta tim 0x05 trong payload (bo qua 5 byte timebase dau). */
     uint8_t *p = buf + 4;
     int n = plen;
     int idx = -1;
     for (int i = 0; i + 11 < n; i++)
     {
-        if (p[i] == SENSOR_REPORTID_ROTATION_VECTOR)
-        {
-            idx = i;
-            break;
-        }
+        if (p[i] == SENSOR_REPORTID_ROTATION_VECTOR) { idx = i; break; }
     }
     if (idx < 0) return 0U;
 
@@ -293,7 +308,6 @@ uint8_t BNO08x_ReadRotationVector(float *qi, float *qj, float *qk, float *qr,
 
     if (euler)
     {
-        /* quaternion -> Euler (radian) -> do */
         const float RAD2DEG = 57.2957795f;
         float sinr_cosp = 2.0f * (fr * fi + fj * fk);
         float cosr_cosp = 1.0f - 2.0f * (fi * fi + fj * fj);
@@ -307,6 +321,7 @@ uint8_t BNO08x_ReadRotationVector(float *qi, float *qj, float *qk, float *qr,
         float siny_cosp = 2.0f * (fr * fk + fi * fj);
         float cosy_cosp = 1.0f - 2.0f * (fj * fj + fk * fk);
         euler->yaw = atan2f(siny_cosp, cosy_cosp) * RAD2DEG;
+
         s_last_yaw = euler->yaw;
         s_yaw_valid = 1U;
     }

@@ -1,18 +1,20 @@
 #include "app/app.h"
-#include "motor/motor_driver.h"
+#include "motor/motor.h"
 #include "usb_protocol.h"
 #include "imu/bno08x.h"
 
-/* = 1: chay self-test BNO08x luc boot, in ket qua ra USB CDC. */
+/* = 1: chay self-test BNO08x luc boot + chan doan I2C, in ra USB CDC. */
 #ifndef BNO08X_SELFTEST_ON_BOOT
 #define BNO08X_SELFTEST_ON_BOOT 1
 #endif
 
-/* = 1: in them dong "IMU yaw/pitch/roll" ra USB CDC de debug.
- * (Du lieu yaw VAN luon duoc doc & cache cho odometry du co bat cai nay hay
- *  khong; cai nay chi them dong log debug.) */
+/* = 1: in dong "IMU yaw/pitch/roll" ra USB CDC de debug. */
 #ifndef BNO08X_DEBUG_PRINT_EULER
 #define BNO08X_DEBUG_PRINT_EULER 0
+#endif
+
+#ifndef BNO08X_BOOT_DIAG_DELAY_MS
+#define BNO08X_BOOT_DIAG_DELAY_MS 5000U
 #endif
 
 #if BNO08X_SELFTEST_ON_BOOT || BNO08X_DEBUG_PRINT_EULER
@@ -40,8 +42,25 @@ void App_Init(void)
 
 #if BNO08X_SELFTEST_ON_BOOT
 	{
+		HAL_Delay(BNO08X_BOOT_DIAG_DELAY_MS);   /* cho USB CDC enumerate/reconnect */
+		app_cdc_log("[boot] BNO08x diagnostics start\r\n");
+
+		/* In chan doan bit-bang PB6/PB7 NHIEU LAN de chac chan bat duoc
+		 * tren Tera Term du mo tre. */
+		for (uint8_t k = 0; k < 5U; k++)
+		{
+			uint32_t err = 0;
+			uint8_t d = BNO08x_Diag(&err);
+			char line[96];
+			const char *txt = (d == 0) ? "ACK-OK" : "NOACK";
+			snprintf(line, sizeof(line),
+			         "[diag %u] BNO08x PB6/PB7=%s, err=0x%lX\r\n",
+			         k, txt, (unsigned long)err);
+			app_cdc_log(line);
+			HAL_Delay(300);
+		}
+
 		uint8_t maj = 0, min = 0;
-		HAL_Delay(2000);   /* cho USB CDC enumerate */
 		if (BNO08x_SelfTest(&maj, &min))
 		{
 			char line[64];
@@ -56,7 +75,6 @@ void App_Init(void)
 	}
 #endif
 
-	/* Bat Rotation Vector ~50Hz de co yaw lien tuc cho odometry. */
 	BNO08x_EnableRotationVector(20);
 }
 
@@ -65,8 +83,6 @@ void App_Loop(void)
 	Motor_Update();
 	Protocol_Update();
 
-	/* Doc IMU thuong xuyen de cap nhat cache yaw (dung trong goi FB).
-	 * ReadRotationVector tu luu yaw moi nhat vao cache ben trong driver. */
 	{
 		BNO08x_Euler e;
 		if (BNO08x_ReadRotationVector(NULL, NULL, NULL, NULL, &e))

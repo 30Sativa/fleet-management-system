@@ -91,6 +91,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USB_Device_Init();
   MX_TIM2_Init();
+  /* BNO08x uses PB6/PB7 bit-bang. */
   /* USER CODE BEGIN 2 */
   App_Init();
   /* USER CODE END 2 */
@@ -220,7 +221,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = PA0___M1_STEP_Pin|PA1___M1_DIR_Pin|PA2___M2_STEP_Pin|PA3___M2_DIR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */

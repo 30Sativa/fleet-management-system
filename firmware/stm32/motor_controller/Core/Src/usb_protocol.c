@@ -1,7 +1,7 @@
 #include "usb_protocol.h"
 
 #include "main.h"
-#include "motor/motor_driver.h"
+#include "motor/motor.h"
 #include "imu/bno08x.h"
 #include "usbd_cdc_if.h"
 
