@@ -28,7 +28,7 @@ BƯỚC 3 — NAVIGATE trên map đã lưu (KHÔNG chạy SLAM nữa):
         map:=/path/to/my_map.yaml                             # robot thật
     ros2 launch robot_navigation sim_navigation.launch.py \
         map:=/path/to/my_map.yaml                             # Gazebo
-    # Gửi goal: RViz "Nav2 Goal" hoặc fleet_manager.
+    # Gửi goal: RViz "Nav2 Goal" hoặc bus_manager (/go_to_stop).
 ```
 
 ## Launch files

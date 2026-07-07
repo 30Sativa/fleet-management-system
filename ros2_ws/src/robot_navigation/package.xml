@@ -3,7 +3,7 @@
 <package format="3">
   <name>robot_navigation</name>
   <version>0.1.0</version>
-  <description>Localization (map_server + AMCL) and navigation on a saved map for the AMR fleet.</description>
+  <description>Localization (map_server + AMCL) and navigation on a saved map for the Smart Campus Bus.</description>
 
   <maintainer email="caoduy856@gmail.com">Duy</maintainer>
   <license>Apache-2.0</license>

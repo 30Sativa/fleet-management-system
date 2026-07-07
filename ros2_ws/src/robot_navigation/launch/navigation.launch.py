@@ -3,7 +3,7 @@
 # REAL ROBOT: navigate on a SAVED map (no SLAM, no explorer).
 #
 # Chain:
-#   goal (RViz "Nav2 Goal" / fleet_manager) -> Nav2 -> /cmd_vel_nav
+#   goal (RViz "Nav2 Goal" / bus_manager stop_navigator) -> Nav2 -> /cmd_vel_nav
 #     -> mode_manager (explore mode accepts nav; manual teleop overrides)
 #     -> /cmd_vel -> STM32 bridge
 #   Localization: map_server + AMCL (map -> odom TF), scan from RPLiDAR.

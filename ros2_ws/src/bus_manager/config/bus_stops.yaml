@@ -1,0 +1,30 @@
+# =============================================================================
+# bus_stops.yaml — cac ben bus tren map campus, frame `map`.
+#
+# QUAN TRONG: toa do phai lay tu map DA LUU:
+#   1. Chay navigation stack (sim_navigation / navigation).
+#   2. Trong RViz, bam "Publish Point" vao vi tri muon dat ben, roi:
+#        ros2 topic echo /clicked_point
+#   3. Ghi x, y vao day. yaw (radian) = huong xe quay mat khi den ben
+#      (nen quay ve phia hanh khach / diem don).
+#
+# Gia tri duoi day la PLACEHOLDER cho world warehouse_12x12 — chinh lai sau
+# khi quet map that. Ten ben dat theo campus de demo do an.
+# =============================================================================
+stops:
+  depot:            # ben do / tram sac (diem xuat phat cua map)
+    x: 0.0
+    y: 0.0
+    yaw: 0.0
+  main_gate:
+    x: 3.5
+    y: 3.0
+    yaw: 1.5708
+  library:
+    x: -3.5
+    y: 3.0
+    yaw: 3.1416
+  dorm_a:
+    x: 0.0
+    y: -3.5
+    yaw: -1.5708

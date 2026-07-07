@@ -8,7 +8,7 @@ Transport is swappable (serial now, can later) via the `transport` parameter.
 The node never imports a concrete transport directly beyond selection — all
 traffic goes through the ArmTransport interface.
 
-Interface is self-contained: to avoid changing the shared fleet_interfaces
+Interface is self-contained: to avoid changing the shared bus_interfaces
 package, this node uses only standard messages for now:
 
   subscribe  /arm/joint_cmd   std_msgs/Float64MultiArray   [j1, j2, z] (deg, deg, mm)
@@ -16,7 +16,7 @@ package, this node uses only standard messages for now:
   publish    /arm/status      std_msgs/String              last feedback line
 
 If a richer custom action/service is wanted later, it can be added to
-fleet_interfaces without disturbing this node's structure.
+bus_interfaces without disturbing this node's structure.
 
 Firmware command vocabulary (text lines, transport-independent):
 

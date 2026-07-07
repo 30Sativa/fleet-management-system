@@ -1,0 +1,11 @@
+# Goal: drive the bus to a named campus stop.
+string stop_id
+---
+# Result
+bool success
+string message          # "arrived", "unknown_stop", "nav2_unavailable", ...
+float32 nav_duration_s  # wall time spent driving
+---
+# Feedback
+string nav_state             # "navigating" | "canceling"
+float32 distance_remaining_m

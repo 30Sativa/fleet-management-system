@@ -41,7 +41,7 @@ ros2 launch arm_bridge arm_bridge.launch.py transport:=can      # later
 - The car STM32 is usually `/dev/ttyACM0`. The arm uses its **own** port,
   default `/dev/ttyUSB0` (Arduino Uno CH340). Keep them different so the two
   bridges never fight over a device.
-- This package does **not** touch `fleet_interfaces`. It uses standard messages
+- This package does **not** touch `bus_interfaces`. It uses standard messages
   so existing builds are unaffected.
 
 ## ROS interface (self-contained)
