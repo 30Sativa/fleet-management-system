@@ -14,8 +14,8 @@
 #define BB_SCL      GPIO_PIN_6      /* PB6 */
 #define BB_SDA      GPIO_PIN_7      /* PB7 */
 #define BB_RST_PORT GPIOA
-#define BB_RST_PIN  GPIO_PIN_9      /* PA9 */
-#define BB_INT_PIN  GPIO_PIN_8      /* PA8 */
+#define BB_RST_PIN  GPIO_PIN_4      /* PA4 */
+#define BB_INT_PIN  GPIO_PIN_5      /* PA5 */
 
 /* De tiet kiem chan STM32: BNO08x chi can SCL/SDA.
  * RST co the keo len 3V3, INT co the bo trong neu poll bang bit-bang. */

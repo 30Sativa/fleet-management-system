@@ -7,42 +7,45 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ===== THAN XE (base / chassis) ===== -->
-  <!-- Kich thuoc that: Dai 0.74 x Rong 0.55 x Cao 0.34 (m) -->
-  <xacro:property name="base_length" value="0.74"/>   <!-- truc X (toi/lui) -->
+  <!-- Do tu chassis.stl: Dai 0.730 x Rong 0.550 x Cao 0.305 (m). -->
+  <xacro:property name="base_length" value="0.73"/>   <!-- truc X (toi/lui) -->
   <xacro:property name="base_width"  value="0.55"/>   <!-- truc Y (trai/phai) -->
-  <xacro:property name="base_height" value="0.34"/>   <!-- truc Z (cao) -->
+  <xacro:property name="base_height" value="0.305"/>  <!-- truc Z (cao) -->
   <xacro:property name="base_mass"   value="40.0"/>   <!-- UOC LUONG: doi theo can that -->
 
-  <!-- Co thanh nhom dinh hinh (extrusion). Mac dinh 2020 = 0.02m.
-       Do lai thanh that roi doi dung 1 so nay (vd 4040 -> 0.04). -->
-  <xacro:property name="profile_size" value="0.02"/>
+  <!-- ===== CAD mesh transform ===== -->
+  <!-- STL dung mm va truc CAD: X=trai/phai, Y=cao, Z=truoc/sau.
+       ROS: X=truoc, Y=trai, Z=cao. -->
+  <xacro:property name="mesh_scale" value="0.001"/>
+  <xacro:property name="cad_to_ros_rpy" value="1.57079632679 0 1.57079632679"/>
 
   <!-- ===== BANH CHINH (driven wheels) ===== -->
-  <!-- Banh do tren-xuong 0.20m => duong kinh 0.20 => ban kinh 0.10 -->
-  <xacro:property name="wheel_radius" value="0.10"/>
+  <!-- Do tu drive-wheel STL: duong kinh xap xi 0.1945m, day 0.050m. -->
+  <xacro:property name="wheel_radius" value="0.09725"/>
   <xacro:property name="wheel_width"  value="0.05"/>
   <xacro:property name="wheel_mass"   value="2.0"/>
 
-  <!-- Khoang cach giua 2 banh chinh (track / wheel separation), tam-toi-tam.
-       separation = base_width + wheel_width = 0.55 + 0.05 = 0.60.
-       RAT QUAN TRONG cho odometry/diff_drive. -->
-  <xacro:property name="wheel_separation" value="${base_width + wheel_width}"/>
+  <!-- Khoang cach tam-tam do truc CAD: 981.06 - 548.56 = 432.50mm. -->
+  <xacro:property name="wheel_separation" value="0.4325"/>
 
-  <!-- Banh chinh nam GIUA than theo truc X (diff-drive co dien) -->
+  <!-- Vi tri tam banh so voi tam base_link, lay tu CAD. -->
   <xacro:property name="wheel_xoff" value="0.0"/>
+  <xacro:property name="wheel_zoff" value="-0.10753"/>
 
-  <!-- ===== BANH PHU (caster, xoay tu do) ===== -->
-  <!-- Dung bi cau (sphere): don gian, khong motor, lan moi huong. -->
-  <xacro:property name="caster_radius" value="0.05"/>
+  <!-- ===== BANH PHU ===== -->
+  <!-- Kich thuoc STL phu khoang 0.169 x 0.171m. -->
+  <xacro:property name="caster_radius" value="0.0855"/>
   <xacro:property name="caster_mass"   value="0.5"/>
-  <xacro:property name="caster_xoff" value="${base_length/2 - 0.08}"/>
-  <xacro:property name="caster_yoff" value="${base_width/2 - 0.08}"/>
+  <!-- Vi tri 4 banh phu do tu tam mesh, giu dung CAD. -->
+  <xacro:property name="caster_front_x" value="0.2900"/>
+  <xacro:property name="caster_rear_x"  value="-0.2900"/>
+  <xacro:property name="caster_left_y"  value="0.15225"/>
+  <xacro:property name="caster_right_y" value="-0.12275"/>
+  <xacro:property name="caster_zoff" value="-0.118005"/>
 
   <!-- ===== CHIEU CAO LAP DAT ===== -->
-  <!-- Day banh chinh cham dat (z=0). Tam truc banh o z = wheel_radius.
-       Tam bi caster o z = caster_radius. -->
-  <xacro:property name="base_z" value="${wheel_radius + base_height/2}"/>
-  <xacro:property name="caster_zoff" value="${-(base_height/2 + (wheel_radius - caster_radius))}"/>
+  <!-- Base_link la tam khung. Dat theo day banh chinh trong CAD. -->
+  <xacro:property name="base_z" value="0.20478"/>
 
   <!-- ===== INERTIA MACROS ===== -->
   <!-- Khoi hop dac -->

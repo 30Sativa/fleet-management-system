@@ -98,7 +98,7 @@ ros2 run tf2_tools view_frames
 
 1. Lái quay (phím `j` hoặc `l`) cho robot xoay đúng 1 vòng theo mắt.
 2. Xem `orientation` trong odom có khớp ~360° không.
-3. Lệch → chỉnh `wheel_separation` (0.60) trong `config/diff_drive_controller.yaml`.
+3. Lệch → chỉnh `wheel_separation` (0.4325) trong `config/diff_drive_controller.yaml`.
 
 ---
 

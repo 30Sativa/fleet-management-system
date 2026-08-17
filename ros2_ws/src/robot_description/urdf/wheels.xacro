@@ -1,27 +1,27 @@
 <?xml version="1.0"?>
 <!-- =========================================================================
      wheels.xacro
-     Macro cho bánh chính (driven, continuous joint) và caster (bi cầu, fixed
-     vì bi lăn tự do trong sim — không cần joint quay riêng cho bi cầu).
+     Macro cho bánh chính (driven, continuous joint) và 4 bánh phụ.
      ========================================================================= -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ===== BÁNH CHÍNH (có motor) ===== -->
   <!-- prefix: left/right ; reflect: +1 (trái) / -1 (phải) -->
-  <xacro:macro name="drive_wheel" params="prefix reflect">
+  <xacro:macro name="drive_wheel" params="prefix reflect mesh_file mesh_x mesh_y mesh_z">
     <link name="${prefix}_wheel_link">
       <visual>
-        <!-- cylinder mặc định trục theo Z; xoay 90° quanh X để trục về Y -->
-        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <origin xyz="${mesh_x} ${mesh_y} ${mesh_z}" rpy="${cad_to_ros_rpy}"/>
         <geometry>
-          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+          <mesh filename="package://robot_description/meshes/${mesh_file}"
+                scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
         </geometry>
         <material name="black"/>
       </visual>
       <collision>
-        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <origin xyz="${mesh_x} ${mesh_y} ${mesh_z}" rpy="${cad_to_ros_rpy}"/>
         <geometry>
-          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+          <mesh filename="package://robot_description/meshes/${mesh_file}"
+                scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
         </geometry>
       </collision>
       <!-- inertia của cylinder; vì link sẽ quay quanh Y nên dùng macro chuẩn -->
@@ -32,8 +32,8 @@
     <joint name="${prefix}_wheel_joint" type="continuous">
       <parent link="base_link"/>
       <child  link="${prefix}_wheel_link"/>
-      <!-- đặt bánh sát hông: y = +/- wheel_separation/2 ; z = xuống tới tâm trục -->
-      <origin xyz="${wheel_xoff} ${reflect * wheel_separation/2} ${-base_height/2}"
+      <!-- Vi tri tam banh lay tu CAD -->
+      <origin xyz="${wheel_xoff} ${reflect * wheel_separation/2} ${wheel_zoff}"
               rpy="0 0 0"/>
       <axis xyz="0 1 0"/>
       <limit effort="100.0" velocity="20.0"/>
@@ -50,28 +50,36 @@
     </gazebo>
   </xacro:macro>
 
-  <!-- ===== CASTER (bi cầu, tự do) ===== -->
-  <!-- prefix: vd front_left ; xpos/ypos: dấu của offset X/Y -->
-  <xacro:macro name="caster_wheel" params="prefix xpos ypos">
+  <!-- ===== BANH PHU ===== -->
+  <!-- Hinh dang lay tu STL; co cau swivel chua duoc mo phong. -->
+  <xacro:macro name="caster_wheel" params="prefix xpos ypos mesh_file mesh_x mesh_y mesh_z">
     <link name="${prefix}_caster_link">
       <visual>
-        <geometry><sphere radius="${caster_radius}"/></geometry>
-        <material name="dark_grey"/>
+        <origin xyz="${mesh_x} ${mesh_y} ${mesh_z}" rpy="${cad_to_ros_rpy}"/>
+        <geometry>
+          <mesh filename="package://robot_description/meshes/${mesh_file}"
+                scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
+        </geometry>
+        <material name="black"/>
       </visual>
       <collision>
-        <geometry><sphere radius="${caster_radius}"/></geometry>
+        <origin xyz="${mesh_x} ${mesh_y} ${mesh_z}" rpy="${cad_to_ros_rpy}"/>
+        <geometry>
+          <mesh filename="package://robot_description/meshes/${mesh_file}"
+                scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
+        </geometry>
       </collision>
       <xacro:sphere_inertia m="${caster_mass}" r="${caster_radius}"/>
     </link>
 
-    <!-- fixed joint: bi cầu lăn tự do nhờ ma sát thấp (mu≈0), không cần motor/joint quay -->
+    <!-- fixed joint: chi mo phong hinh dang va tiep xuc, chua co swivel joint -->
     <joint name="${prefix}_caster_joint" type="fixed">
       <parent link="base_link"/>
       <child  link="${prefix}_caster_link"/>
-      <origin xyz="${xpos * caster_xoff} ${ypos * caster_yoff} ${caster_zoff}" rpy="0 0 0"/>
+      <origin xyz="${xpos} ${ypos} ${caster_zoff}" rpy="0 0 0"/>
     </joint>
 
-    <!-- ma sát ~0 để bi trượt/lăn mọi hướng như caster thật -->
+    <!-- Ma sat thap de banh phu khong keo le robot qua nhieu. -->
     <gazebo reference="${prefix}_caster_link">
       <mu1>0.0</mu1>
       <mu2>0.0</mu2>

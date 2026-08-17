@@ -3,7 +3,7 @@
 <package format="3">
   <name>robot_description</name>
   <version>0.1.0</version>
-  <description>URDF/Xacro description for the differential-drive AMR (2 driven wheels + 4 free casters).</description>
+  <description>URDF/Xacro description for the differential-drive AMR (2 driven wheels + 4 passive caster wheels).</description>
 
   <maintainer email="caoduy856@gmail.com">Duy</maintainer>
   <license>Apache-2.0</license>

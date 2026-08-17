@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!-- =========================================================================
      robot.urdf.xacro  FILE CHINH (top-level)
-     AMR differential-drive: 2 banh chinh co motor + 4 caster bi cau tu do.
+     AMR differential-drive: 2 banh chinh co motor + 4 banh phu tu do.
      Cay frame chuan Nav2:
        base_footprint -> base_link -> (wheels, casters, lidar, imu)
      Build: xacro robot.urdf.xacro use_sim:=true > robot.urdf
@@ -14,7 +14,6 @@
   <!-- ===== Include cac phan ===== -->
   <xacro:include filename="$(find robot_description)/urdf/common_properties.xacro"/>
   <xacro:include filename="$(find robot_description)/urdf/materials.xacro"/>
-  <xacro:include filename="$(find robot_description)/urdf/chassis_frame.xacro"/>
   <xacro:include filename="$(find robot_description)/urdf/wheels.xacro"/>
   <xacro:include filename="$(find robot_description)/urdf/sensors.xacro"/>
   <xacro:include filename="$(find robot_description)/urdf/ros2_control.xacro"/>
@@ -30,14 +29,21 @@
 
   <!-- ===== base_link (than xe) ===== -->
   <link name="base_link">
-    <!-- VISUAL = khung nhom ho (nhieu thanh box), nhin giong xe that -->
-    <xacro:chassis_frame L="${base_length}" W="${base_width}" H="${base_height}" p="${profile_size}"/>
-
-    <!-- COLLISION = 1 khoi hop bao ngoai (don gian, nhe, an toan cho Nav2). -->
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+    <!-- Mesh goc tu CAD; scale mm -> m va doi truc CAD -> ROS. -->
+    <visual>
+      <origin xyz="-1.674842 -0.764810 -1.092814" rpy="${cad_to_ros_rpy}"/>
       <geometry>
-        <box size="${base_length} ${base_width} ${base_height}"/>
+        <mesh filename="package://robot_description/meshes/chassis.stl"
+              scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
+      </geometry>
+      <material name="grey"/>
+    </visual>
+
+    <collision>
+      <origin xyz="-1.674842 -0.764810 -1.092814" rpy="${cad_to_ros_rpy}"/>
+      <geometry>
+        <mesh filename="package://robot_description/meshes/chassis.stl"
+              scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
       </geometry>
     </collision>
 
@@ -49,14 +55,26 @@
   </gazebo>
 
   <!-- ===== Banh chinh ===== -->
-  <xacro:drive_wheel prefix="left"  reflect="1"/>
-  <xacro:drive_wheel prefix="right" reflect="-1"/>
+  <xacro:drive_wheel prefix="left"  reflect="1"
+                     mesh_file="left_drive_wheel.stl"
+                     mesh_x="-1.674844" mesh_y="-0.981060" mesh_z="-0.985314"/>
+  <xacro:drive_wheel prefix="right" reflect="-1"
+                     mesh_file="right_drive_wheel.stl"
+                     mesh_x="-1.674844" mesh_y="-0.548560" mesh_z="-0.985314"/>
 
-  <!-- ===== 4 caster o 4 goc ===== -->
-  <xacro:caster_wheel prefix="front_left"  xpos="1"  ypos="1"/>
-  <xacro:caster_wheel prefix="front_right" xpos="1"  ypos="-1"/>
-  <xacro:caster_wheel prefix="rear_left"   xpos="-1" ypos="1"/>
-  <xacro:caster_wheel prefix="rear_right"  xpos="-1" ypos="-1"/>
+  <!-- ===== 4 banh phu o 4 goc ===== -->
+  <xacro:caster_wheel prefix="front_left" xpos="${caster_front_x}" ypos="${caster_left_y}"
+                       mesh_file="front_left_caster.stl"
+                       mesh_x="-1.964838" mesh_y="-0.917062" mesh_z="-0.974809"/>
+  <xacro:caster_wheel prefix="front_right" xpos="${caster_front_x}" ypos="${caster_right_y}"
+                       mesh_file="front_right_caster.stl"
+                       mesh_x="-1.964857" mesh_y="-0.642145" mesh_z="-0.974809"/>
+  <xacro:caster_wheel prefix="rear_left" xpos="${caster_rear_x}" ypos="${caster_left_y}"
+                       mesh_file="rear_left_caster.stl"
+                       mesh_x="-1.384831" mesh_y="-0.917062" mesh_z="-0.974809"/>
+  <xacro:caster_wheel prefix="rear_right" xpos="${caster_rear_x}" ypos="${caster_right_y}"
+                       mesh_file="rear_right_caster.stl"
+                       mesh_x="-1.384831" mesh_y="-0.642062" mesh_z="-0.974809"/>
 
   <!-- ===== ros2_control ===== -->
   <xacro:robot_ros2_control use_sim="$(arg use_sim)"/>
