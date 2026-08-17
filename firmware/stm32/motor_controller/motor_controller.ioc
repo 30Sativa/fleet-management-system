@@ -20,6 +20,8 @@ Mcu.Pin0=PA0
 Mcu.Pin1=PA1
 Mcu.Pin10=VP_TIM2_VS_ClockSourceINT
 Mcu.Pin11=VP_USB_DEVICE_VS_USB_DEVICE_CDC_FS
+Mcu.Pin12=PB6
+Mcu.Pin13=PB7
 Mcu.Pin2=PA2
 Mcu.Pin3=PA3
 Mcu.Pin4=PA11
@@ -28,7 +30,7 @@ Mcu.Pin6=PA13
 Mcu.Pin7=PA14
 Mcu.Pin8=VP_SYS_VS_Systick
 Mcu.Pin9=VP_SYS_VS_DBSignals
-Mcu.PinsNb=12
+Mcu.PinsNb=14
 Mcu.ThirdPartyNb=0
 Mcu.UserConstants=
 Mcu.UserName=STM32G431CBUx
@@ -70,6 +72,14 @@ PA3.GPIOParameters=GPIO_Label
 PA3.GPIO_Label=PA3 \= M2_DIR
 PA3.Locked=true
 PA3.Signal=GPIO_Output
+PB6.GPIOParameters=GPIO_Label
+PB6.GPIO_Label=PB6 \= IMU_SCL_BITBANG
+PB6.Locked=true
+PB6.Signal=GPIO_Output
+PB7.GPIOParameters=GPIO_Label
+PB7.GPIO_Label=PB7 \= IMU_SDA_BITBANG
+PB7.Locked=true
+PB7.Signal=GPIO_Output
 PinOutPanel.RotationAngle=-270
 ProjectManager.AskForMigrate=true
 ProjectManager.BackupPrevious=false

@@ -1,67 +1,56 @@
-# STM32G431CBU (UFQFPN48) — Pin Map tổng thể
+# STM32G431CBU (UFQFPN48) — pin map hiện tại
 
-> Bản nháp đề xuất. **PHẢI xác nhận lại trong STM32CubeMX** trước khi đấu dây,
-> vì gói UFQFPN48 giới hạn alternate-function của một số chân (bài học: PB6
-> KHÔNG ra được I2C1_SCL trên chip này).
+Tài liệu này mô tả **đúng theo source firmware và `motor_controller.ioc` hiện
+tại**. Mọi thay đổi pin phải được cập nhật đồng thời trong CubeMX, code driver
+và sơ đồ dây thực tế.
 
-## 1. Đang dùng (đã cố định trong .ioc)
+## Các chân đang được firmware sử dụng
 
-| Chân | Chức năng | Ghi chú |
-|------|-----------|---------|
-| PA0  | M1_STEP (GPIO out) | Motor trái — STEP |
-| PA1  | M1_DIR  (GPIO out) | Motor trái — DIR |
-| PA2  | M2_STEP (GPIO out) | Motor phải — STEP |
-| PA3  | M2_DIR  (GPIO out) | Motor phải — DIR |
-| PA11 | USB_DM | USB CDC (debug) |
-| PA12 | USB_DP | USB CDC (debug) |
-| PA13 | SWDIO | Debug — KHÔNG đụng |
-| PA14 | SWCLK | Debug — KHÔNG đụng |
-| PB8  | I2C1_SCL | IMU BNO085 + bus I2C dùng chung |
-| PB9  | I2C1_SDA | IMU BNO085 + bus I2C dùng chung |
-| PA8  | IMU INT (GPIO in) | BNO085 ngắt (tùy chọn) |
+| Chân | Chức năng | Căn cứ |
+|---|---|---|
+| PA0 | M1_STEP | GPIO output trong `main.c` |
+| PA1 | M1_DIR | GPIO output trong `main.c` |
+| PA2 | M2_STEP | GPIO output trong `main.c` |
+| PA3 | M2_DIR | GPIO output trong `main.c` |
+| PA4 | IMU RST tùy chọn | Chỉ dùng khi bật `BNO08X_USE_HW_RST=1` |
+| PA5 | IMU INT tùy chọn | Chỉ dùng khi bật `BNO08X_USE_INT_PIN=1` |
+| PA11 | USB_DM | USB CDC |
+| PA12 | USB_DP | USB CDC |
+| PA13 | SWDIO | Debug, không dùng cho thiết bị khác |
+| PA14 | SWCLK | Debug, không dùng cho thiết bị khác |
+| PB6 | IMU SCL | I2C bit-bang trong `bno08x.c` |
+| PB7 | IMU SDA | I2C bit-bang trong `bno08x.c` |
 
-IMU **không dùng RST cứng** — reset bằng lệnh phần mềm qua I2C. Tiết kiệm 1 chân.
+## IMU BNO08x
 
-## 2. Xung đột cần giải quyết: USB + CAN
+```text
+BNO08x SCL -> PB6
+BNO08x SDA -> PB7
+BNO08x ADD -> GND       # địa chỉ 7-bit 0x4A
+BNO08x CS  -> 3V3       # chọn chế độ I2C
+BNO08x RST -> 3V3       # hiện không dùng reset GPIO
+BNO08x INT -> bỏ trống  # hiện driver đang polling
+```
 
-FDCAN1 trên G431 chỉ có 2 cặp chân khả dĩ:
-- **PA11 / PA12** → TRÙNG USB.
-- **PB8 / PB9** → TRÙNG I2C1 (IMU).
+Driver không dùng `HAL_I2C`, `I2C_HandleTypeDef` hay `MX_I2C1_Init`. Nó tự tạo
+START/STOP/ACK bằng GPIO open-drain và đọc `GPIOB->IDR`. Vì vậy đây là I2C
+bit-bang, có hỗ trợ chờ clock stretching của BNO08x (timeout 25 ms).
 
-Vì muốn giữ **cả USB (debug) lẫn CAN (chạy thật)**, phải dời I2C để
-nhường PB8/PB9 cho CAN:
+## Các chân chưa được cấu hình trong firmware hiện tại
 
-**Phương án đề xuất:**
-- USB: giữ PA11/PA12.
-- CAN (FDCAN1): **PB8=FDCAN1_RX, PB9=FDCAN1_TX**.
-- I2C1 (IMU): dời sang cặp khác — ứng viên cần verify trong CubeMX:
-  - `PA15 / PB7`  (I2C1: SCL=PA15? cần kiểm tra) — hoặc
-  - `PC4 / PB7`, hoặc dùng **I2C2/I2C3** trên cặp chân còn trống.
+| Nhóm | Trạng thái |
+|---|---|
+| PB8/PB9 | Chưa dùng. Không được ghi là I2C1 trong tài liệu hiện tại. Có thể dành cho CAN sau khi cấu hình CubeMX và driver CAN. |
+| I2C1/I2C2/I2C3 | Chưa có peripheral nào được khởi tạo trong `main.c`; các giá trị clock I2C còn lại trong `.ioc` không có nghĩa là I2C đang chạy. |
+| CAN/FDCAN | Chưa có cấu hình và driver trong firmware hiện tại. |
+| PA6, PA7, PA8, PA9, PA10, PA15, PB0–PB5, PB10–PB11, PC4, PC6, PC10–PC15, PF0–PF1 | Đang để dành; phải kiểm tra alternate function trong CubeMX trước khi dùng. |
 
-> TODO: mở CubeMX, thử gán I2C lên cặp chân còn trống, ghi lại cặp hợp lệ.
+## Lưu ý phần cứng
 
-## 3. Cần thêm (theo sơ đồ khối hệ thống)
-
-| Ngoại vi | Số chân | Gợi ý |
-|----------|---------|-------|
-| CAN (FDCAN1) | 2 (TX/RX) | PB8/PB9 (sau khi dời I2C) |
-| 4× SR04T siêu âm | 5–8 | Trig chung (1) + 4 Echo (input-capture timer), hoặc riêng |
-| 2× RD03 radar | 2–4 | UART (LPUART1 / USART). Mỗi con 1 UART nếu cần song công |
-| E-Stop input | 1 | GPIO in, có pull-up, đọc trạng thái NC |
-| Contactor coil ctrl | 1 | GPIO out (5V qua mạch đệm) |
-
-## 4. Chân còn trống (UFQFPN48) để phân bổ
-
-Sau khi trừ các chân trên, còn lại (cần verify từng cái trong CubeMX):
-PA4, PA5, PA6, PA7, PA9, PA10, PA15, PB0, PB1, PB2, PB3, PB4, PB5, PB6, PB7,
-PB10, PB11, PC4, PC6, PC10, PC11, PC13, PC14, PC15, PF0, PF1.
-
-(PA9 vừa được giải phóng do bỏ RST của IMU.)
-
-## 5. Lưu ý quan trọng
-
-- **Echo của SR04T là 5V** — STM32 chỉ chịu 3.3V (đa số chân 5V-tolerant
-  nhưng KHÔNG phải tất cả). Cần **chia áp** hoặc dùng chân 5V-tolerant.
-- **PB8 kiêm BOOT0** — nếu dùng PB8, để ý mức lúc power-on.
-- I2C là bus dùng chung: thêm cảm biến I2C khác KHÔNG tốn thêm chân.
-- Mọi gán chân cuối cùng phải khớp giữa CubeMX (.ioc) và phần cứng thật.
+- BNO08x dùng bus I2C open-drain; cần pull-up phù hợp lên 3.3V.
+- Không nối PB6/PB7 đồng thời vào một peripheral I2C khác nếu chưa kiểm tra địa
+  chỉ và tải bus.
+- Echo của SR04T có thể là 5V; phải kiểm tra mức điện áp trước khi nối vào STM32.
+- 74HCT245 phải cấp 5V nếu dùng để nâng mức tín hiệu STEP/DIR; `OE#` phải được
+  kéo đúng mức để output hoạt động.
+- PB8/PB9 không được tự nhận là CAN chỉ vì tài liệu cũ từng đề xuất như vậy.
