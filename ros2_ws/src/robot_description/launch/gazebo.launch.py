@@ -40,6 +40,12 @@ def setup_gazebo(context):
          'use_ros2_control:=' + use_ros2_control.perform(context)]).decode('utf-8')
     clean_urdf = re.sub(r'<!--.*?-->', '', raw, flags=re.DOTALL).strip()
 
+    # Doi 'package://robot_description/' -> duong dan TUYET DOI trong install.
+    # Ly do: gzclient chay rieng khong phan giai duoc 'package://' -> khong tim
+    # thay mesh STL -> robot vo hinh (chi thay lidar/imu la primitive). Duong
+    # dan tuyet doi thi gzclient/gzserver/RViz deu load duoc.
+    clean_urdf = clean_urdf.replace('package://robot_description/', pkg + '/')
+
     rsp = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
