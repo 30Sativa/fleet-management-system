@@ -64,7 +64,7 @@ def setup_gazebo(context):
         package='gazebo_ros',
         executable='spawn_entity.py',
         arguments=['-topic', 'robot_description', '-entity', 'amr_robot',
-                   '-z', '0.05'],
+                   '-z', '0.05', '-timeout', '120.0'],
         output='screen',
     )
 
