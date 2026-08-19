@@ -9,11 +9,10 @@
 import os
 import re
 import subprocess
-from ament_index_python.packages import get_package_share_directory, get_package_prefix
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                            OpaqueFunction, RegisterEventHandler,
-                            SetEnvironmentVariable)
+                            OpaqueFunction, RegisterEventHandler)
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -95,13 +94,6 @@ def setup_gazebo(context):
 
 
 def generate_launch_description():
-    ros_lib = os.path.join(get_package_prefix('gazebo_ros2_control'), 'lib')
-
-    # Thu muc CHA cua package share -> de Gazebo/gzclient phan giai
-    # 'package://robot_description/meshes/...' (neu khong co, gzclient khong
-    # tim thay mesh -> robot vo hinh, chi thay lidar).
-    share_parent = os.path.dirname(get_package_share_directory('robot_description'))
-
     return LaunchDescription([
         DeclareLaunchArgument(
             'world', default_value='',
@@ -115,23 +107,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_ros2_control', default_value='true',
             description='Load gazebo_ros2_control from the robot URDF when true.'),
-        SetEnvironmentVariable(
-            name='GAZEBO_PLUGIN_PATH',
-            value=ros_lib + ':' + os.environ.get('GAZEBO_PLUGIN_PATH', ''),
-        ),
-        # Ep Gazebo transport chay tren loopback -> tranh loi
-        # 'Network is unreachable' khi VM dung Bridged / khong co mang.
-        SetEnvironmentVariable(name='GAZEBO_IP', value='127.0.0.1'),
-        SetEnvironmentVariable(name='GAZEBO_MASTER_URI',
-                               value='http://127.0.0.1:11345'),
-        # Cho gzclient tim thay file mesh STL.
-        SetEnvironmentVariable(
-            name='GAZEBO_RESOURCE_PATH',
-            value=share_parent + ':' + os.environ.get('GAZEBO_RESOURCE_PATH', ''),
-        ),
-        SetEnvironmentVariable(
-            name='GAZEBO_MODEL_PATH',
-            value=share_parent + ':' + os.environ.get('GAZEBO_MODEL_PATH', ''),
-        ),
+        # gazebo_ros tu nap init/factory plugin va tu thiet lap cac duong dan
+        # Gazebo. Khong override GAZEBO_* o day: tren VMware, override co the
+        # khien libgazebo_ros_factory.so khong dang ky /spawn_entity.
+        # Mesh cua robot da duoc doi thanh duong dan tuyet doi trong setup_gazebo.
         OpaqueFunction(function=setup_gazebo),
     ])
