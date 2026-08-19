@@ -13,6 +13,7 @@ from ament_index_python.packages import get_package_share_directory, get_package
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
                             RegisterEventHandler, SetEnvironmentVariable)
+from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -26,6 +27,8 @@ def generate_launch_description():
 
     # Optional Gazebo world (.world). Empty -> default empty world.
     world = LaunchConfiguration('world')
+    gui = LaunchConfiguration('gui')
+    load_controllers = LaunchConfiguration('load_controllers')
 
     # ===== Bao Gazebo cho tim plugin .so (mac dinh GAZEBO_PLUGIN_PATH thuong rong) =====
     ros_lib = os.path.join(get_package_prefix('gazebo_ros2_control'), 'lib')
@@ -53,7 +56,7 @@ def generate_launch_description():
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(gazebo_ros, 'launch', 'gazebo.launch.py')),
-        launch_arguments={'world': world}.items(),
+        launch_arguments={'world': world, 'gui': gui}.items(),
     )
 
     spawn = Node(
@@ -68,12 +71,14 @@ def generate_launch_description():
         package='controller_manager', executable='spawner',
         arguments=['joint_state_broadcaster',
                    '--controller-manager', '/controller_manager'],
+        condition=IfCondition(load_controllers),
         output='screen',
     )
     ddc = Node(
         package='controller_manager', executable='spawner',
         arguments=['diff_drive_controller',
                    '--controller-manager', '/controller_manager'],
+        condition=IfCondition(load_controllers),
         output='screen',
     )
 
@@ -81,6 +86,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'world', default_value='',
             description='Path to a Gazebo .world file. Empty = empty world.'),
+        DeclareLaunchArgument(
+            'gui', default_value='true',
+            description='Start gzclient GUI when true.'),
+        DeclareLaunchArgument(
+            'load_controllers', default_value='true',
+            description='Spawn ros2_control controllers when true.'),
         set_plugin_path,
         rsp,
         gazebo,

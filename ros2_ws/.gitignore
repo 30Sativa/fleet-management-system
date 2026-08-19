@@ -3,4 +3,9 @@ install/
 log/
 *.pyc
 __pycache__/
+
+# Local vendor checkouts used for hardware experiments. Keep the guidance file.
+src/third_party/*
+!src/third_party/README.md
+src/openNISDK*/
 .vscode/

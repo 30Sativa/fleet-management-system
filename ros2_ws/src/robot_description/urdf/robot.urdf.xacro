@@ -37,12 +37,6 @@
               scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
       </geometry>
       <material name="grey"/>
-    </visual>
-
-    <collision>
-      <origin xyz="-1.674842 -0.764810 -1.092814" rpy="${cad_to_ros_rpy}"/>
-      <geometry>
-        <mesh filename="package://robot_description/meshes/chassis.stl"
               scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
       </geometry>
     </collision>
