@@ -12,7 +12,8 @@ import subprocess
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                            RegisterEventHandler, SetEnvironmentVariable)
+                            OpaqueFunction, RegisterEventHandler,
+                            SetEnvironmentVariable)
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -20,29 +21,23 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
-def generate_launch_description():
+def setup_gazebo(context):
     pkg = get_package_share_directory('robot_description')
     gazebo_ros = get_package_share_directory('gazebo_ros')
     xacro_file = os.path.join(pkg, 'urdf', 'robot.urdf.xacro')
 
-    # Optional Gazebo world (.world). Empty -> default empty world.
     world = LaunchConfiguration('world')
     gui = LaunchConfiguration('gui')
     load_controllers = LaunchConfiguration('load_controllers')
-
-    # ===== Bao Gazebo cho tim plugin .so (mac dinh GAZEBO_PLUGIN_PATH thuong rong) =====
-    ros_lib = os.path.join(get_package_prefix('gazebo_ros2_control'), 'lib')
-    set_plugin_path = SetEnvironmentVariable(
-        name='GAZEBO_PLUGIN_PATH',
-        value=ros_lib + ':' + os.environ.get('GAZEBO_PLUGIN_PATH', ''),
-    )
+    use_ros2_control = LaunchConfiguration('use_ros2_control')
 
     # ===== Chay xacro ROI XOA HET COMMENT =====
     # Ly do: gazebo_ros2_control tren Humble bi loi 'Couldn't parse param
     # override rule' khi URDF co comment XML (dau '<', xuong dong) o dau file.
     # Strip comment -> URDF sach -> plugin nap controller_manager thanh cong.
     raw = subprocess.check_output(
-        ['xacro', xacro_file, 'use_sim:=true']).decode('utf-8')
+        ['xacro', xacro_file, 'use_sim:=true',
+         'use_ros2_control:=' + use_ros2_control.perform(context)]).decode('utf-8')
     clean_urdf = re.sub(r'<!--.*?-->', '', raw, flags=re.DOTALL).strip()
 
     rsp = Node(
@@ -63,7 +58,7 @@ def generate_launch_description():
         package='gazebo_ros',
         executable='spawn_entity.py',
         arguments=['-topic', 'robot_description', '-entity', 'amr_robot',
-                   '-z', '0.15'],
+                   '-z', '0.05'],
         output='screen',
     )
 
@@ -82,6 +77,20 @@ def generate_launch_description():
         output='screen',
     )
 
+    return [
+        rsp,
+        gazebo,
+        spawn,
+        RegisterEventHandler(OnProcessExit(target_action=spawn,
+                                           on_exit=[jsb])),
+        RegisterEventHandler(OnProcessExit(target_action=jsb,
+                                           on_exit=[ddc])),
+    ]
+
+
+def generate_launch_description():
+    ros_lib = os.path.join(get_package_prefix('gazebo_ros2_control'), 'lib')
+
     return LaunchDescription([
         DeclareLaunchArgument(
             'world', default_value='',
@@ -92,12 +101,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'load_controllers', default_value='true',
             description='Spawn ros2_control controllers when true.'),
-        set_plugin_path,
-        rsp,
-        gazebo,
-        spawn,
-        RegisterEventHandler(OnProcessExit(target_action=spawn,
-                                           on_exit=[jsb])),
-        RegisterEventHandler(OnProcessExit(target_action=jsb,
-                                           on_exit=[ddc])),
+        DeclareLaunchArgument(
+            'use_ros2_control', default_value='true',
+            description='Load gazebo_ros2_control from the robot URDF when true.'),
+        SetEnvironmentVariable(
+            name='GAZEBO_PLUGIN_PATH',
+            value=ros_lib + ':' + os.environ.get('GAZEBO_PLUGIN_PATH', ''),
+        ),
+        OpaqueFunction(function=setup_gazebo),
     ])

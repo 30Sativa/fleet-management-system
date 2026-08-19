@@ -17,11 +17,11 @@
         </geometry>
         <material name="black"/>
       </visual>
+      <!-- Collision = cylinder (truc quay quanh Y). Nhanh hon mesh nhieu. -->
       <collision>
-        <origin xyz="${mesh_x} ${mesh_y} ${mesh_z}" rpy="${cad_to_ros_rpy}"/>
+        <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
         <geometry>
-          <mesh filename="package://robot_description/meshes/${mesh_file}"
-                scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
         </geometry>
       </collision>
       <!-- inertia của cylinder; vì link sẽ quay quanh Y nên dùng macro chuẩn -->
@@ -62,11 +62,11 @@
         </geometry>
         <material name="black"/>
       </visual>
+      <!-- Collision = sphere don gian thay cho mesh phu. -->
       <collision>
-        <origin xyz="${mesh_x} ${mesh_y} ${mesh_z}" rpy="${cad_to_ros_rpy}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://robot_description/meshes/${mesh_file}"
-                scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
+          <sphere radius="${caster_radius}"/>
         </geometry>
       </collision>
       <xacro:sphere_inertia m="${caster_mass}" r="${caster_radius}"/>

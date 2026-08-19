@@ -41,7 +41,9 @@
   <xacro:property name="caster_rear_x"  value="-0.2900"/>
   <xacro:property name="caster_left_y"  value="0.15225"/>
   <xacro:property name="caster_right_y" value="-0.12275"/>
-  <xacro:property name="caster_zoff" value="-0.118005"/>
+  <!-- Ha xuong de banh phu CHAM DAT (day = day banh chinh) -> robot dung vung,
+       khong lat. caster_zoff = caster_radius - base_z = 0.0855 - 0.20478. -->
+  <xacro:property name="caster_zoff" value="-0.11928"/>
 
   <!-- ===== CHIEU CAO LAP DAT ===== -->
   <!-- Base_link la tam khung. Dat theo day banh chinh trong CAD. -->
