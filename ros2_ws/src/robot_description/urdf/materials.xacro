@@ -6,5 +6,7 @@
   <material name="orange"> <color rgba="0.9 0.5 0.1 1.0"/></material>
   <material name="black">  <color rgba="0.05 0.05 0.05 1.0"/></material>
   <material name="blue">   <color rgba="0.1 0.3 0.8 1.0"/></material>
+  <material name="green">  <color rgba="0.1 0.8 0.2 1.0"/></material>
+  <material name="yellow"> <color rgba="0.9 0.8 0.1 1.0"/></material>
   <material name="white">  <color rgba="0.9 0.9 0.9 1.0"/></material>
 </robot>

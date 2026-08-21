@@ -18,6 +18,8 @@ setup(
          glob(os.path.join('launch', '*.launch.py'))),
         (os.path.join('share', package_name, 'config'),
          glob(os.path.join('config', '*.yaml'))),
+        (os.path.join('share', package_name, 'rviz'),
+         glob(os.path.join('rviz', '*.rviz'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

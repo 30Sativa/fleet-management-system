@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "app/app.h"
+#include "sonar/sr04t.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -91,9 +92,9 @@ int main(void)
   MX_GPIO_Init();
   MX_USB_Device_Init();
   MX_TIM2_Init();
-  /* BNO08x uses PB6/PB7 bit-bang. */
   /* USER CODE BEGIN 2 */
   App_Init();
+  SR04T_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -213,9 +214,13 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, PA0___M1_STEP_Pin|PA1___M1_DIR_Pin|PA2___M2_STEP_Pin|PA3___M2_DIR_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, PB0_SONAR1_TRIG_Pin|PB11_SONAR2_TRIG_Pin|PB6___IMU_SCL_BITBANG_Pin|PB7___IMU_SDA_BITBANG_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PA0___M1_STEP_Pin PA1___M1_DIR_Pin PA2___M2_STEP_Pin PA3___M2_DIR_Pin */
   GPIO_InitStruct.Pin = PA0___M1_STEP_Pin|PA1___M1_DIR_Pin|PA2___M2_STEP_Pin|PA3___M2_DIR_Pin;
@@ -223,6 +228,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB0_SONAR1_TRIG_Pin PB11_SONAR2_TRIG_Pin PB6___IMU_SCL_BITBANG_Pin PB7___IMU_SDA_BITBANG_Pin */
+  GPIO_InitStruct.Pin = PB0_SONAR1_TRIG_Pin|PB11_SONAR2_TRIG_Pin|PB6___IMU_SCL_BITBANG_Pin|PB7___IMU_SDA_BITBANG_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB1_SONAR1_ECHO_Pin PB12_SONAR2_ECHO_Pin */
+  GPIO_InitStruct.Pin = PB1_SONAR1_ECHO_Pin|PB12_SONAR2_ECHO_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

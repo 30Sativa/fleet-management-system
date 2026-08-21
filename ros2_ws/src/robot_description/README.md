@@ -21,7 +21,9 @@ base_footprint
 └── base_link
     ├── left_wheel_link / right_wheel_link   (continuous, có motor)
     ├── 4× *_caster_link                     (fixed, bánh phụ)
-    ├── lidar_link                           (fixed)
+    ├── lidar_link                           (giữa nóc xe, fixed)
+    ├── sonar1_link                          (giữa mặt trước, nhìn +X)
+    ├── sonar2_link                          (giữa mặt sau, nhìn -X)
     └── imu_link                             (fixed)
 ```
 
@@ -31,7 +33,9 @@ base_footprint
 - `urdf/common_properties.xacro` — **tất cả số đo + macro inertia gom ở đây**.
 - `meshes/*.stl` — 7 mesh đã đổi tên ASCII và đặt trong package.
 - `urdf/wheels.xacro` — macro bánh chính + 4 bánh phụ dùng STL cho visual/collision.
-- `urdf/sensors.xacro` — LiDAR 2D + IMU (vị trí ước lượng, chỉnh theo thực tế).
+- `urdf/sensors.xacro` — LiDAR 2D + IMU + hai SR04T. LiDAR ở giữa nóc xe;
+  SONAR1 giữa mặt trước và SONAR2 giữa mặt sau. Đo lại vị trí thật trước
+  khi dùng dữ liệu sonar cho tránh vật cản.
 - `urdf/ros2_control.xacro` — hardware interface (sim ⇄ hardware thật qua `use_sim`).
 - `config/diff_drive_controller.yaml` — controller (wheel_separation/radius **phải khớp** URDF).
 - `urdf/robot_expanded_sim.urdf` / `robot_expanded_hw.urdf` — URDF đã expand sẵn để tham khảo.
@@ -83,5 +87,5 @@ Bánh phụ hiện đang là `fixed` để giữ hình dạng và tiếp xúc tr
 
 ## Đã kiểm tra
 
-- Xacro expand OK cả `use_sim:=true` và `false`; URDF sinh ra có 10 link, 9 joint và 14 mesh references.
+- Xacro expand OK cả `use_sim:=true` và `false`; URDF sinh ra có 12 link, 11 joint và 14 mesh references.
 - `wheel_separation` trong YAML (0.4325) và `wheel_radius` (0.09725) khớp Xacro.

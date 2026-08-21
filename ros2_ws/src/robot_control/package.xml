@@ -14,19 +14,23 @@
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>gazebo_ros</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>joy_linux</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
   <exec_depend>nav2_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>orbbec_bringup</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>robot_description</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>rplidar_ros</exec_depend>
+  <exec_depend>rviz2</exec_depend>
   <exec_depend>slam_toolbox</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>teleop_twist_keyboard</exec_depend>
+  <exec_depend>teleop_twist_joy</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>topic_tools</exec_depend>
   <exec_depend>xacro</exec_depend>

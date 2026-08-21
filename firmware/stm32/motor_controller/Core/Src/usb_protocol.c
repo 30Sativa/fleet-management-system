@@ -3,6 +3,7 @@
 #include "main.h"
 #include "motor/motor.h"
 #include "imu/bno08x.h"
+#include "sonar/sr04t.h"
 #include "usbd_cdc_if.h"
 
 #include <ctype.h>
@@ -14,7 +15,7 @@
 
 #define PROTOCOL_RX_LINE_SIZE 96U
 #define PROTOCOL_RX_QUEUE_COUNT 8U
-#define PROTOCOL_TX_BUFFER_SIZE 128U
+#define PROTOCOL_TX_BUFFER_SIZE 160U
 #define PROTOCOL_TX_BUFFER_COUNT 2U
 
 typedef enum
@@ -325,24 +326,35 @@ static uint8_t Protocol_TrySendPendingError(void)
 static uint8_t Protocol_TrySendFeedback(uint32_t now_ms)
 {
 	uint32_t dt_ms = now_ms - last_feedback_sent_ms;
+	uint16_t sonar1_mm = 0U;
+	uint16_t sonar2_mm = 0U;
+	uint8_t sonar1_valid = 0U;
+	uint8_t sonar2_valid = 0U;
 
 	/* Yaw tu IMU (cache). Gui dang centi-do (yaw*100) kieu integer de tranh
 	 * phu thuoc %f. yaw_valid=1 neu IMU da co du lieu.
-	 * Format moi (tuong thich nguoc, them 2 truong cuoi):
-	 *   FB,<seq>,<left>,<right>,<dt_ms>,<status>,<yaw_cdeg>,<yaw_valid> */
+	 * Format moi (tuong thich nguoc, them yaw va 2 SR04T):
+	 *   FB,<seq>,<left>,<right>,<dt_ms>,<status>,<yaw_cdeg>,<yaw_valid>,
+	 *      <sonar1_mm>,<sonar1_valid>,<sonar2_mm>,<sonar2_valid> */
 	uint8_t yaw_valid = 0U;
 	float   yaw_deg   = BNO08x_GetLastYaw(&yaw_valid);
 	long    yaw_cdeg  = (long)(yaw_deg * 100.0f);
+	SR04T_GetReading(0U, &sonar1_mm, &sonar1_valid);
+	SR04T_GetReading(1U, &sonar2_mm, &sonar2_valid);
 
 	return Protocol_TrySendFormatted(
-		"FB,%lu,%ld,%ld,%lu,%s,%ld,%u\r\n",
+		"FB,%lu,%ld,%ld,%lu,%s,%ld,%u,%u,%u,%u,%u\r\n",
 		(unsigned long)last_seq,
 		(long)Motor_GetLeftCount(),
 		(long)Motor_GetRightCount(),
 		(unsigned long)dt_ms,
 		Protocol_StatusText(),
 		yaw_cdeg,
-		(unsigned)yaw_valid);
+		(unsigned)yaw_valid,
+		(unsigned)sonar1_mm,
+		(unsigned)sonar1_valid,
+		(unsigned)sonar2_mm,
+		(unsigned)sonar2_valid);
 }
 
 static uint8_t Protocol_TrySendRaw(const char *text)

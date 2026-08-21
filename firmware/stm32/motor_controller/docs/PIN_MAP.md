@@ -20,6 +20,25 @@ và sơ đồ dây thực tế.
 | PA14 | SWCLK | Debug, không dùng cho thiết bị khác |
 | PB6 | IMU SCL | I2C bit-bang trong `bno08x.c` |
 | PB7 | IMU SDA | I2C bit-bang trong `bno08x.c` |
+| PB0 | SR04T SONAR1 TRIG | J_SONAR1 pin 2, GPIO output |
+| PB1 | SR04T SONAR1 ECHO | J_SONAR1 pin 3, EXTI1 input |
+| PB11 | SR04T SONAR2 TRIG | J_SONAR2 pin 2, GPIO output |
+| PB12 | SR04T SONAR2 ECHO | J_SONAR2 pin 3, EXTI15_10 input |
+
+## ST-LINK / SWD
+
+```text
+ST-LINK SWDIO  -> STM32 PA13 (SWDIO)
+ST-LINK SWCLK  -> STM32 PA14 (SWCLK)
+ST-LINK GND    -> STM32 GND
+ST-LINK VTref  -> STM32 3V3 (mức tham chiếu, không phải nguồn 5V)
+ST-LINK NRST   -> STM32 NRST (khuyến nghị, có thể bỏ qua nếu board không đưa ra)
+```
+
+USB nối vào cổng USB CDC của board chỉ dùng cho giao tiếp firmware/ROS, không
+thay thế được dây SWD. ST-LINK phải được USB attach vào đúng hệ điều hành đang
+chạy CubeIDE; nếu CubeIDE chạy trên Windows thì không để VMware giữ ST-LINK cho
+Ubuntu guest. Kiểm tra bằng `STM32_Programmer_CLI -l` trước khi bấm Run/Debug.
 
 ## IMU BNO08x
 
@@ -43,14 +62,14 @@ bit-bang, có hỗ trợ chờ clock stretching của BNO08x (timeout 25 ms).
 | PB8/PB9 | Chưa dùng. Không được ghi là I2C1 trong tài liệu hiện tại. Có thể dành cho CAN sau khi cấu hình CubeMX và driver CAN. |
 | I2C1/I2C2/I2C3 | Chưa có peripheral nào được khởi tạo trong `main.c`; các giá trị clock I2C còn lại trong `.ioc` không có nghĩa là I2C đang chạy. |
 | CAN/FDCAN | Chưa có cấu hình và driver trong firmware hiện tại. |
-| PA6, PA7, PA8, PA9, PA10, PA15, PB0–PB5, PB10–PB11, PC4, PC6, PC10–PC15, PF0–PF1 | Đang để dành; phải kiểm tra alternate function trong CubeMX trước khi dùng. |
+| PA6, PA7, PA8, PA9, PA10, PA15, PB2–PB5, PB8–PB10, PC4, PC6, PC10–PC15, PF0–PF1 | Đang để dành; phải kiểm tra alternate function trong CubeMX trước khi dùng. |
 
 ## Lưu ý phần cứng
 
 - BNO08x dùng bus I2C open-drain; cần pull-up phù hợp lên 3.3V.
 - Không nối PB6/PB7 đồng thời vào một peripheral I2C khác nếu chưa kiểm tra địa
   chỉ và tải bus.
-- Echo của SR04T có thể là 5V; phải kiểm tra mức điện áp trước khi nối vào STM32.
+- Echo của SR04T có thể là 5V. Sơ đồ hiện tại nối trực tiếp vào PB1/PB12, nên phải xác nhận module đang chạy mức echo 3.3V hoặc thêm chia áp/level shifter trước khi cấp nguồn và flash firmware.
 - 74HCT245 phải cấp 5V nếu dùng để nâng mức tín hiệu STEP/DIR; `OE#` phải được
   kéo đúng mức để output hoạt động.
 - PB8/PB9 không được tự nhận là CAN chỉ vì tài liệu cũ từng đề xuất như vậy.

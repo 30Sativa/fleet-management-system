@@ -32,6 +32,8 @@ DRIVER_ARGS = [
     ('depth_width', '640'),
     ('depth_height', '480'),
     ('depth_fps', '30'),
+    ('enable_color', 'true'),
+    ('enable_depth', 'true'),
     ('enable_ir', 'false'),
     ('enable_point_cloud', 'true'),
     ('color_info_url', ''),

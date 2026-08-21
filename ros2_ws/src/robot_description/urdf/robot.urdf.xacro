@@ -3,7 +3,7 @@
      robot.urdf.xacro  FILE CHINH (top-level)
      AMR differential-drive: 2 banh chinh co motor + 4 banh phu tu do.
      Cay frame chuan Nav2:
-       base_footprint -> base_link -> (wheels, casters, lidar, imu)
+       base_footprint -> base_link -> (wheels, casters, lidar, sonar1/2, imu)
      Build: xacro robot.urdf.xacro use_sim:=true > robot.urdf
      ========================================================================= -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="amr_robot">

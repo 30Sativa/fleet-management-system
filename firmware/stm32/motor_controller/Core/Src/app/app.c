@@ -2,6 +2,7 @@
 #include "motor/motor.h"
 #include "usb_protocol.h"
 #include "imu/bno08x.h"
+#include "sonar/sr04t.h"
 
 /* = 1: chay self-test BNO08x luc boot + chan doan I2C, in ra USB CDC. */
 #ifndef BNO08X_SELFTEST_ON_BOOT
@@ -81,6 +82,7 @@ void App_Init(void)
 void App_Loop(void)
 {
 	Motor_Update();
+	SR04T_Update();
 	Protocol_Update();
 
 	{

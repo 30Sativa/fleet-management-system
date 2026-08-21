@@ -30,6 +30,14 @@ def generate_launch_description():
     publish_tf = LaunchConfiguration('publish_tf')
     odom_frame = LaunchConfiguration('odom_frame')
     base_frame = LaunchConfiguration('base_frame')
+    publish_sonar = LaunchConfiguration('publish_sonar')
+    sonar1_topic = LaunchConfiguration('sonar1_topic')
+    sonar2_topic = LaunchConfiguration('sonar2_topic')
+    sonar1_frame = LaunchConfiguration('sonar1_frame')
+    sonar2_frame = LaunchConfiguration('sonar2_frame')
+    sonar_min_range = LaunchConfiguration('sonar_min_range')
+    sonar_max_range = LaunchConfiguration('sonar_max_range')
+    sonar_field_of_view = LaunchConfiguration('sonar_field_of_view')
     feedback_timeout = LaunchConfiguration('feedback_timeout')
     feedback_counts_are_cumulative = LaunchConfiguration(
         'feedback_counts_are_cumulative')
@@ -122,6 +130,38 @@ def generate_launch_description():
             description='Robot base child frame for odom TF. Must match '
                         'SLAM/Nav2 base_frame (base_footprint in this stack).'),
         DeclareLaunchArgument(
+            'publish_sonar',
+            default_value='true',
+            description='Publish the two SR04T readings as sensor_msgs/Range.'),
+        DeclareLaunchArgument(
+            'sonar1_topic',
+            default_value='/ultrasonic/sonar1/range',
+            description='SONAR1 Range topic.'),
+        DeclareLaunchArgument(
+            'sonar2_topic',
+            default_value='/ultrasonic/sonar2/range',
+            description='SONAR2 Range topic.'),
+        DeclareLaunchArgument(
+            'sonar1_frame',
+            default_value='sonar1_link',
+            description='SONAR1 Range frame id; temporary front TF is in robot_description.'),
+        DeclareLaunchArgument(
+            'sonar2_frame',
+            default_value='sonar2_link',
+            description='SONAR2 Range frame id; temporary rear TF is in robot_description.'),
+        DeclareLaunchArgument(
+            'sonar_min_range',
+            default_value='0.20',
+            description='Minimum accepted SR04T range in metres.'),
+        DeclareLaunchArgument(
+            'sonar_max_range',
+            default_value='6.0',
+            description='Maximum accepted SR04T range in metres.'),
+        DeclareLaunchArgument(
+            'sonar_field_of_view',
+            default_value='0.52',
+            description='SR04T field of view in radians.'),
+        DeclareLaunchArgument(
             'feedback_timeout',
             default_value='1.0',
             description='Warn if no STM32 feedback is received for this many seconds.'),
@@ -176,6 +216,18 @@ def generate_launch_description():
                 'publish_tf': ParameterValue(publish_tf, value_type=bool),
                 'odom_frame': odom_frame,
                 'base_frame': base_frame,
+                'publish_sonar': ParameterValue(
+                    publish_sonar, value_type=bool),
+                'sonar1_topic': sonar1_topic,
+                'sonar2_topic': sonar2_topic,
+                'sonar1_frame': sonar1_frame,
+                'sonar2_frame': sonar2_frame,
+                'sonar_min_range': ParameterValue(
+                    sonar_min_range, value_type=float),
+                'sonar_max_range': ParameterValue(
+                    sonar_max_range, value_type=float),
+                'sonar_field_of_view': ParameterValue(
+                    sonar_field_of_view, value_type=float),
                 'feedback_timeout': ParameterValue(
                     feedback_timeout, value_type=float),
                 'feedback_counts_are_cumulative': ParameterValue(

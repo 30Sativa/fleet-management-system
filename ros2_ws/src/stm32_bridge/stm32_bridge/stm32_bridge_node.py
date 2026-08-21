@@ -6,6 +6,7 @@ from geometry_msgs.msg import TransformStamped, Twist
 from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
+from sensor_msgs.msg import Range
 from tf2_ros import TransformBroadcaster
 
 try:
@@ -68,6 +69,14 @@ class Stm32BridgeNode(Node):
         self.declare_parameter('publish_tf', True)
         self.declare_parameter('odom_frame', 'odom')
         self.declare_parameter('base_frame', 'base_link')
+        self.declare_parameter('publish_sonar', True)
+        self.declare_parameter('sonar1_topic', '/ultrasonic/sonar1/range')
+        self.declare_parameter('sonar2_topic', '/ultrasonic/sonar2/range')
+        self.declare_parameter('sonar1_frame', 'sonar1_link')
+        self.declare_parameter('sonar2_frame', 'sonar2_link')
+        self.declare_parameter('sonar_min_range', 0.20)
+        self.declare_parameter('sonar_max_range', 6.0)
+        self.declare_parameter('sonar_field_of_view', 0.52)
         self.declare_parameter('feedback_timeout', 1.0)
         self.declare_parameter('feedback_counts_are_cumulative', True)
         self.declare_parameter('feedback_rate_warn_hz', 2.0)
@@ -109,6 +118,17 @@ class Stm32BridgeNode(Node):
         self.publish_tf = bool(self.get_parameter('publish_tf').value)
         self.odom_frame = str(self.get_parameter('odom_frame').value)
         self.base_frame = str(self.get_parameter('base_frame').value)
+        self.publish_sonar = bool(self.get_parameter('publish_sonar').value)
+        self.sonar1_topic = str(self.get_parameter('sonar1_topic').value)
+        self.sonar2_topic = str(self.get_parameter('sonar2_topic').value)
+        self.sonar1_frame = str(self.get_parameter('sonar1_frame').value)
+        self.sonar2_frame = str(self.get_parameter('sonar2_frame').value)
+        self.sonar_min_range = float(
+            self.get_parameter('sonar_min_range').value)
+        self.sonar_max_range = float(
+            self.get_parameter('sonar_max_range').value)
+        self.sonar_field_of_view = float(
+            self.get_parameter('sonar_field_of_view').value)
         self.feedback_timeout = float(
             self.get_parameter('feedback_timeout').value)
         self.feedback_counts_are_cumulative = bool(
@@ -193,10 +213,15 @@ class Stm32BridgeNode(Node):
 
         self._odom_pub = None
         self._tf_broadcaster = None
+        self._sonar1_pub = None
+        self._sonar2_pub = None
         if self.publish_odom:
             self._odom_pub = self.create_publisher(Odometry, '/odom', 10)
         if self.publish_tf:
             self._tf_broadcaster = TransformBroadcaster(self)
+        if self.publish_sonar:
+            self._sonar1_pub = self.create_publisher(Range, self.sonar1_topic, 10)
+            self._sonar2_pub = self.create_publisher(Range, self.sonar2_topic, 10)
 
         self.get_logger().info(
             'Starting STM32 bridge: '
@@ -214,6 +239,8 @@ class Stm32BridgeNode(Node):
             f'odom_invert_right={self.odom_invert_right}, '
             f'publish_odom={self.publish_odom}, publish_tf={self.publish_tf}, '
             f'odom_frame={self.odom_frame}, base_frame={self.base_frame}, '
+            f'publish_sonar={self.publish_sonar}, '
+            f'sonar_topics=({self.sonar1_topic},{self.sonar2_topic}), '
             'command_format=CMD/STOP mm/s, feedback_format=FB seq/count/dt/status')
 
         self._open_serial()
@@ -406,11 +433,12 @@ class Stm32BridgeNode(Node):
         self.get_logger().debug(f'Ignoring non-feedback serial line: {line}')
 
     def _handle_feedback_line(self, line: str):
-        parsed = self._parse_feedback_line(line)
+        parsed = self._parse_feedback_line(line, include_sonar=True)
         if parsed is None:
             return
 
-        seq, left_count, right_count, dt_ms, status, yaw_rad = parsed
+        (seq, left_count, right_count, dt_ms, status, yaw_rad,
+         sonar1, sonar2) = parsed
 
         # Cap nhat yaw IMU (zero-hoa lan dau de heading bat dau tu 0).
         if yaw_rad is not None:
@@ -420,6 +448,13 @@ class Stm32BridgeNode(Node):
         now_mono = time.monotonic()
         now_ros = self.get_clock().now()
         now_ros_sec = now_ros.nanoseconds / 1e9
+
+        if sonar1 is not None:
+            self._publish_sonar_range(
+                self._sonar1_pub, self.sonar1_frame, sonar1, now_ros)
+        if sonar2 is not None:
+            self._publish_sonar_range(
+                self._sonar2_pub, self.sonar2_frame, sonar2, now_ros)
 
         self._last_feedback_mono = now_mono
         self._last_feedback_seq = seq
@@ -466,13 +501,29 @@ class Stm32BridgeNode(Node):
 
     def _parse_feedback_line(
             self,
-            line: str
-    ) -> Optional[Tuple[Optional[int], int, int, float, str, Optional[float]]]:
+            line: str,
+            include_sonar: bool = False
+    ) -> Optional[Tuple]:
         parts = [part.strip() for part in line.split(',')]
         yaw_rad: Optional[float] = None
+        sonar1 = None
+        sonar2 = None
         try:
-            # Format moi (firmware co IMU): FB,seq,left,right,dt,status,yaw_cdeg,yaw_valid
-            if len(parts) == 8:
+            # New format appends mm/valid pairs for SONAR1 and SONAR2.
+            if len(parts) == 12:
+                seq = int(parts[1])
+                left_count = int(parts[2])
+                right_count = int(parts[3])
+                dt_ms = float(parts[4])
+                status = parts[5].upper()
+                yaw_cdeg = int(parts[6])
+                yaw_valid = int(parts[7])
+                if yaw_valid != 0:
+                    yaw_rad = math.radians(yaw_cdeg / 100.0)
+                sonar1 = (int(parts[8]), int(parts[9]) != 0)
+                sonar2 = (int(parts[10]), int(parts[11]) != 0)
+            # Format with IMU only: FB,seq,left,right,dt,status,yaw_cdeg,yaw_valid
+            elif len(parts) == 8:
                 seq = int(parts[1])
                 left_count = int(parts[2])
                 right_count = int(parts[3])
@@ -496,13 +547,16 @@ class Stm32BridgeNode(Node):
                 status = parts[4].upper()
             else:
                 raise ValueError(
-                    f'expected 5, 6 or 8 CSV fields, got {len(parts)}')
+                    f'expected 5, 6, 8 or 12 CSV fields, got {len(parts)}')
         except ValueError as exc:
             self.get_logger().warn(
                 f'Failed to parse STM32 feedback "{line}": {exc}')
             return None
 
-        return seq, left_count, right_count, dt_ms, status, yaw_rad
+        parsed = seq, left_count, right_count, dt_ms, status, yaw_rad
+        if include_sonar:
+            return parsed + (sonar1, sonar2)
+        return parsed
 
     def _compute_count_delta(
             self,
@@ -624,6 +678,33 @@ class Stm32BridgeNode(Node):
             transform.transform.rotation.z = qz
             transform.transform.rotation.w = qw
             self._tf_broadcaster.sendTransform(transform)
+
+    def _publish_sonar_range(
+            self,
+            publisher,
+            frame_id: str,
+            reading: Tuple[int, bool],
+            stamp):
+        if not self.publish_sonar or publisher is None:
+            return
+
+        distance_mm, valid = reading
+        range_msg = Range()
+        range_msg.header.stamp = stamp.to_msg()
+        range_msg.header.frame_id = frame_id
+        range_msg.radiation_type = Range.ULTRASOUND
+        range_msg.field_of_view = self.sonar_field_of_view
+        range_msg.min_range = self.sonar_min_range
+        range_msg.max_range = self.sonar_max_range
+
+        distance_m = distance_mm / 1000.0
+        if valid and self.sonar_min_range <= distance_m <= self.sonar_max_range:
+            range_msg.range = distance_m
+        else:
+            # sensor_msgs/Range uses NaN for an invalid or missing echo.
+            range_msg.range = float('nan')
+
+        publisher.publish(range_msg)
 
     def _check_feedback_timeout(self, now: float):
         if not self.publish_odom and not self.publish_tf:

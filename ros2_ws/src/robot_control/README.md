@@ -30,6 +30,8 @@ subscribes only to `/cmd_vel`.
 | `/emergency_stop_state` | `std_msgs/msg/Bool` | Emergency stop state |
 | `/scan` | `sensor_msgs/msg/LaserScan` | RPLiDAR scan |
 | `/odom` | `nav_msgs/msg/Odometry` | STM32 step-count odometry |
+| `/ultrasonic/sonar1/range` | `sensor_msgs/msg/Range` | SR04T SONAR1 |
+| `/ultrasonic/sonar2/range` | `sensor_msgs/msg/Range` | SR04T SONAR2 |
 | `/map` | `nav_msgs/msg/OccupancyGrid` | SLAM map |
 
 ## TF Frames
@@ -92,6 +94,75 @@ Save the map after a good mapping run:
 ```bash
 ros2 run nav2_map_server map_saver_cli -f ~/maps/amr_map
 ```
+
+### Manual Mapping With Gamepad + Astra Pro
+
+For the current laptop/VMware hardware test, use the dedicated launch below.
+It starts manual STM32 control, RPLiDAR, `slam_toolbox`, a Linux gamepad, and
+the Astra Pro camera. Nav2 and frontier exploration are deliberately absent.
+
+Install the gamepad packages once on the Ubuntu VM:
+
+```bash
+sudo apt install ros-humble-joy-linux ros-humble-teleop-twist-joy
+```
+
+```bash
+ros2 launch robot_control manual_mapping_gamepad_camera.launch.py \
+  port:=/dev/ttyACM0 \
+  lidar_serial_port:=/dev/ttyUSB0 \
+  joy_dev:=/dev/input/js0 \
+  camera_x:=0.25 camera_y:=0.0 camera_z:=0.35 camera_pitch:=0.17
+```
+
+Before launching, verify the Linux device names:
+
+```bash
+ls -l /dev/ttyACM* /dev/ttyUSB* /dev/input/js*
+```
+
+During mapping, verify the data path in a second terminal:
+
+```bash
+ros2 topic echo /scan --once
+ros2 topic echo /odom --once
+ros2 topic echo /map --once
+ros2 topic echo /joy --once
+ros2 topic hz /camera/depth/image_raw
+ros2 topic hz /camera/depth/points
+```
+
+Save the map after driving all required areas:
+
+```bash
+mkdir -p ~/maps
+ros2 run nav2_map_server map_saver_cli -f ~/maps/amr_map
+```
+
+The gamepad mapping uses button `0` as a dead-man enable button, left stick
+vertical for forward/backward, and left stick horizontal for rotation. Verify
+the actual device first with `ls -l /dev/input/js*` and `ros2 topic echo
+/joy --once`; VMware must pass the controller through to the Ubuntu guest.
+
+The two SR04T sensors are carried in the STM32 feedback and exposed by the
+bridge as `/ultrasonic/sonar1/range` and `/ultrasonic/sonar2/range`
+(`sensor_msgs/msg/Range`). Check them while mapping:
+
+```bash
+ros2 topic echo /ultrasonic/sonar1/range
+ros2 topic echo /ultrasonic/sonar2/range
+```
+
+The schematic mapping is `SONAR1: PB0=TRIG, PB1=ECHO` and
+`SONAR2: PB11=TRIG, PB12=ECHO`; connector pin 2 is TRIG and pin 3 is ECHO.
+The temporary URDF places SONAR1 at the front centre facing forward and
+SONAR2 at the rear centre facing backward. LiDAR is at the centre of the
+roof, matching the current physical mount.
+Confirm the SR04T Echo electrical level before powering it: the schematic
+shows a direct connection to PB1/PB12, while some SR04T modules output 5 V.
+Use a divider or level shifter if the installed module does not guarantee a
+3.3 V Echo signal. These ranges are for hardware testing only and are not fed
+into `slam_toolbox` yet.
 
 ## Auto Explore
 

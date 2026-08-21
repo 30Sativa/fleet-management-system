@@ -39,6 +39,11 @@ def _install_ros_stubs():
     nav_msgs.msg = nav_msgs_msg
     nav_msgs_msg.Odometry = type('Odometry', (), {})
 
+    sensor_msgs = _stub_module('sensor_msgs')
+    sensor_msgs_msg = _stub_module('sensor_msgs.msg')
+    sensor_msgs.msg = sensor_msgs_msg
+    sensor_msgs_msg.Range = type('Range', (), {'ULTRASOUND': 0})
+
     rclpy = _stub_module('rclpy')
     rclpy_node = _stub_module('rclpy.node')
     rclpy.node = rclpy_node
@@ -239,6 +244,24 @@ def test_parse_feedback_eight_field_yaw_invalid():
     assert parsed is not None
     _, _, _, _, _, yaw_rad = parsed
     assert yaw_rad is None
+
+
+def test_parse_feedback_twelve_field_with_two_sonars():
+    parsed = Stm32BridgeNode._parse_feedback_line(
+        Stm32BridgeNode,
+        'FB,8,100,110,20,OK,9000,1,1234,1,0,0',
+        include_sonar=True,
+    )
+    assert parsed is not None
+    seq, left, right, dt_ms, status, yaw_rad, sonar1, sonar2 = parsed
+    assert seq == 8
+    assert left == 100
+    assert right == 110
+    approx(dt_ms, 20.0)
+    assert status == 'OK'
+    approx(yaw_rad, math.pi / 2, tol=1e-6)
+    assert sonar1 == (1234, True)
+    assert sonar2 == (0, False)
 
 
 def test_parse_feedback_garbage_returns_none():
