@@ -1,58 +1,83 @@
+"""Phase 1 entry point: Astra Pro driver + base_link->camera_link mount TF.
+
+This is the launch file the rest of the robot should include.  It owns two
+things and nothing else:
+
+1. the camera driver (``astra_pro.launch.py`` in this package), and
+2. the static transform from ``base_link`` to the camera, which is robot
+   geometry and therefore ours, not the vendor's.
+
+Nav2, SLAM and the depth->laserscan conversion are deliberately NOT here.
+Phase 1 is "the camera is trustworthy"; wiring it into navigation is Phase 2.
+"""
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.launch_description_sources import AnyLaunchDescriptionSource, PythonLaunchDescriptionSource
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
-def generate_launch_description():
-    """Start a vendor driver launch file and the robot-to-camera static TF."""
-    driver_package = LaunchConfiguration('driver_package')
-    driver_launch_file = LaunchConfiguration('driver_launch_file')
-    mount_launch = PathJoinSubstitution([
-        FindPackageShare('orbbec_bringup'), 'launch', 'camera_mount.launch.py',
-    ])
-    driver_launch = PathJoinSubstitution([
-        FindPackageShare(driver_package), 'launch', driver_launch_file,
-    ])
+# Forwarded verbatim to astra_pro.launch.py so callers can override the
+# camera without this file re-declaring every driver parameter.
+DRIVER_ARGS = [
+    ('camera_name', 'camera'),
+    ('uvc_product_id', '0x0501'),
+    ('uvc_vendor_id', '0x2bc5'),
+    ('color_width', '640'),
+    ('color_height', '480'),
+    ('color_fps', '30'),
+    ('depth_width', '640'),
+    ('depth_height', '480'),
+    ('depth_fps', '30'),
+    ('enable_ir', 'false'),
+    ('enable_point_cloud', 'true'),
+    ('color_info_url', ''),
+]
 
-    return LaunchDescription([
-        DeclareLaunchArgument(
-            'driver_package', default_value='astra_camera',
-            description='Installed package that owns this camera model.'),
-        DeclareLaunchArgument(
-            'driver_launch_file', default_value='astra_pro.launch.xml',
-            description='Driver launch file for the detected camera model.'),
-        DeclareLaunchArgument(
-            'uvc_product_id', default_value='0x0501',
-            description='Astra Pro RGB UVC product ID from lsusb (commonly 0x0501 or 0x0502).'),
-        DeclareLaunchArgument('parent_frame', default_value='base_link'),
-        DeclareLaunchArgument('child_frame', default_value='camera_link'),
-        DeclareLaunchArgument('x', default_value='0.0'),
-        DeclareLaunchArgument('y', default_value='0.0'),
-        DeclareLaunchArgument('z', default_value='0.0'),
-        DeclareLaunchArgument('roll', default_value='0.0'),
-        DeclareLaunchArgument('pitch', default_value='0.0'),
-        DeclareLaunchArgument('yaw', default_value='0.0'),
-        # The Astra Pro legacy driver supplies XML launch files; newer Orbbec
-        # drivers usually use Python.  Select the source type by file suffix.
+MOUNT_ARGS = [
+    ('parent_frame', 'base_link'),
+    ('child_frame', 'camera_link'),
+    ('x', '0.0'),
+    ('y', '0.0'),
+    ('z', '0.0'),
+    ('roll', '0.0'),
+    ('pitch', '0.0'),
+    ('yaw', '0.0'),
+]
+
+
+def generate_launch_description():
+    pkg = FindPackageShare('orbbec_bringup')
+    driver_launch = PathJoinSubstitution([pkg, 'launch', 'astra_pro.launch.py'])
+    mount_launch = PathJoinSubstitution([pkg, 'launch', 'camera_mount.launch.py'])
+    rviz_config = PathJoinSubstitution([pkg, 'rviz', 'astra_pro.rviz'])
+
+    declared = [
+        DeclareLaunchArgument(name, default_value=default)
+        for name, default in DRIVER_ARGS + MOUNT_ARGS
+    ]
+    declared.append(DeclareLaunchArgument(
+        'rviz', default_value='false',
+        description='Open RViz2 with the Phase 1 verification layout.'))
+
+    return LaunchDescription(declared + [
         IncludeLaunchDescription(
-            AnyLaunchDescriptionSource(driver_launch),
-            launch_arguments={
-                'uvc_product_id': LaunchConfiguration('uvc_product_id'),
-            }.items(),
+            PythonLaunchDescriptionSource(driver_launch),
+            launch_arguments={n: LaunchConfiguration(n) for n, _ in DRIVER_ARGS}.items(),
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(mount_launch),
-            launch_arguments={
-                'parent_frame': LaunchConfiguration('parent_frame'),
-                'child_frame': LaunchConfiguration('child_frame'),
-                'x': LaunchConfiguration('x'),
-                'y': LaunchConfiguration('y'),
-                'z': LaunchConfiguration('z'),
-                'roll': LaunchConfiguration('roll'),
-                'pitch': LaunchConfiguration('pitch'),
-                'yaw': LaunchConfiguration('yaw'),
-            }.items(),
+            launch_arguments={n: LaunchConfiguration(n) for n, _ in MOUNT_ARGS}.items(),
+        ),
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            arguments=['-d', rviz_config],
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('rviz')),
         ),
     ])
