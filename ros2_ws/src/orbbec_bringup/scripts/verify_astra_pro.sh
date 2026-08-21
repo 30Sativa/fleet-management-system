@@ -51,7 +51,7 @@ check_hz() {
     fail "${topic}: only ${hz} Hz (expected >= ${min})"
   fi
 }
-check_hz "/${CAMERA}/color/image_raw" 10
+check_hz "/${CAMERA}/color/image_raw" "${MIN_COLOR_HZ:-10}"
 check_hz "/${CAMERA}/depth/image_raw" 10
 check_hz "/${CAMERA}/depth/points" 5
 

@@ -24,6 +24,11 @@ setup(
          glob(os.path.join('scripts', '*.sh'))),
     ],
     install_requires=['setuptools'],
+    entry_points={
+        'console_scripts': [
+            'depth_check = orbbec_bringup.depth_check_node:main',
+        ],
+    },
     zip_safe=True,
     maintainer='Duy',
     maintainer_email='caoduy856@gmail.com',

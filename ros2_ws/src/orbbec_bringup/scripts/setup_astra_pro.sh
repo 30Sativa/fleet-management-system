@@ -22,6 +22,7 @@ sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   build-essential cmake git pkg-config \
   libgflags-dev libgoogle-glog-dev libusb-1.0-0-dev libeigen3-dev \
+  nlohmann-json3-dev \
   "ros-${ROS_DISTRO}-image-geometry" \
   "ros-${ROS_DISTRO}-camera-info-manager" \
   "ros-${ROS_DISTRO}-image-transport" \
