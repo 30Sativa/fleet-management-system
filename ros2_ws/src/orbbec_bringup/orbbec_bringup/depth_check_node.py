@@ -21,7 +21,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-from sensor_msgs.msg import CameraInfo, Image
+from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from tf2_ros import Buffer, TransformListener
 
 
@@ -104,16 +104,28 @@ class DepthCheckNode(Node):
 
         self.info = None
         self.depth = None
+        # Phase 3 hand-off: the costmap consumes /<camera>/depth/points, not the
+        # depth image this node deprojects itself.  Watch that topic too, or
+        # Phase 2 can pass while the topic Nav2 will actually read is dead.
+        self.cloud = None
+        self.cloud_count = 0
+        self.cloud_t0 = None
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
+        # BEST_EFFORT on the subscriber side is compatible with a RELIABLE
+        # publisher as well as a SENSOR_DATA one.  RELIABLE here would go
+        # permanently silent the day anyone launches with depth_qos:=sensor_data,
+        # and a silent diagnostic is worse than no diagnostic.
         qos = QoSProfile(depth=1, history=HistoryPolicy.KEEP_LAST,
-                         reliability=ReliabilityPolicy.RELIABLE)
+                         reliability=ReliabilityPolicy.BEST_EFFORT)
         self.create_subscription(
             CameraInfo, f'/{self.camera_name}/depth/camera_info', self._on_info, qos)
         self.create_subscription(
             Image, f'/{self.camera_name}/depth/image_raw', self._on_depth, qos)
+        self.create_subscription(
+            PointCloud2, f'/{self.camera_name}/depth/points', self._on_cloud, qos)
 
         self.create_timer(float(self.get_parameter('report_period').value), self._report)
         print(f'[depth_check] watching /{self.camera_name}/depth/* '
@@ -124,6 +136,12 @@ class DepthCheckNode(Node):
 
     def _on_depth(self, msg):
         self.depth = msg
+
+    def _on_cloud(self, msg):
+        self.cloud = msg
+        self.cloud_count += 1
+        if self.cloud_t0 is None:
+            self.cloud_t0 = self.get_clock().now()
 
     # -- decoding -----------------------------------------------------------
 
@@ -149,6 +167,17 @@ class DepthCheckNode(Node):
             print('[depth_check] waiting for depth image + camera_info ...', flush=True)
             return
         msg, info = self.depth, self.info
+
+        # The Astra Pro is known to start, stream a few frames, then stall on a
+        # VM.  Without this the report keeps re-analysing one frozen frame and
+        # looks perfectly healthy.
+        stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        now = self.get_clock().now().nanoseconds * 1e-9
+        age = now - stamp
+        if age > 2.0:
+            print(f'[depth_check] CHU Y  khung depth cu {age:.1f} s -- driver da '
+                  f'treo? (thu depth_fps:=15, enable_ir:=false, cong USB 3.x)',
+                  flush=True)
 
         try:
             depth_m = self._depth_metres(msg)
@@ -348,6 +377,29 @@ class DepthCheckNode(Node):
             lines.append(f'     {lo:.1f} - {hi:.1f}     {band.shape[0]:>6}    {r.std()*1000:>6.1f}')
         lines.append('   (nhieu cua structured light tang theo binh phuong khoang cach -- '
                      'dai xa xau hon la binh thuong)')
+
+        # --- 5. topic ma Phase 3 se dung ----------------------------------
+        lines.append('')
+        lines.append('-- 5. San sang cho Phase 3 (Nav2) ------------------------------')
+        topic = f'/{self.camera_name}/depth/points'
+        if self.cloud is None:
+            lines.append(f'   FAIL  {topic} chua co ban tin nao.')
+            lines.append('         Nav2 doc topic NAY, khong doc depth/image_raw.')
+            lines.append('         Chay lai voi enable_point_cloud:=true.')
+        else:
+            hz = 0.0
+            if self.cloud_t0 is not None:
+                dt = (self.get_clock().now() - self.cloud_t0).nanoseconds * 1e-9
+                if dt > 0.5:
+                    hz = self.cloud_count / dt
+            n_pts = self.cloud.width * self.cloud.height
+            lines.append(f'   PASS  {topic}: ~{hz:.1f} Hz, {n_pts} diem/ban tin, '
+                         f'frame "{self.cloud.header.frame_id}"')
+            if n_pts > 120000:
+                lines.append('   CHU Y  cloud rat nang cho costmap. Phase 3 nen ha '
+                             'depth_width:=320 depth_height:=240 depth_fps:=10.')
+            if hz and hz < 3.0:
+                lines.append('   CHU Y  duoi 3 Hz -- costmap se cap nhat vat can qua cham.')
 
         self._flush(lines)
 

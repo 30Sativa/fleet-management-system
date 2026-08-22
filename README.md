@@ -2,23 +2,57 @@
 
 ## Architecture
 
-This repository contains the robot-side software for a small autonomous
-vehicle:
+This repository contains the robot-side software for the **CampusTour DT-AMR**
+autonomous mobile robot (ROS 2 Humble + Nav2).
 
-- `ros2_ws/` is the ROS2 workspace used by the miniPC.
-- `ros2_ws/src/stm32_bridge` is the current real-robot bridge from `/cmd_vel`
-  to the STM32 motor controller over USB CDC serial.
-- `ros2_ws/src/robot_control` contains the real-robot mode manager, launch
-  files for manual/manual-mapping/auto-explore, Nav2/SLAM configs, and a simple
-  frontier explorer.
-- `ros2_ws/src/robot_description` contains the URDF/xacro robot model and
-  simulation/display launch files.
-- `firmware/stm32/motor_controller` contains the STM32G431 firmware project for
-  the HBS57H STEP/DIR motor controller.
+ROS 2 packages under `ros2_ws/src/`:
 
-The miniPC runs the ROS2 side in Docker. The STM32 remains a separately flashed
-motor-control board. ROS2 sends high-level wheel speed commands over USB serial;
-the STM32 owns the real-time motor stepping logic.
+| Package | Role |
+|---|---|
+| `stm32_bridge` | `/cmd_vel` -> STM32 motor controller over USB CDC serial; publishes odom + sonar |
+| `robot_control` | mode manager (cmd_vel mux), manual / manual-mapping / auto-explore launches, Nav2 + SLAM configs, frontier explorer |
+| `robot_description` | URDF/xacro robot model, Gazebo + display launches |
+| `robot_navigation` | localization (map_server + AMCL) and navigation on a saved map |
+| `orbbec_bringup` | Astra Pro depth camera bringup + mount TF + Phase 2 depth diagnostics |
+| `robot_perception` | Phase 4 person perception -> Nav2 speed limit |
+| `bus_manager` | `go_to_stop` action: drive to named bus stops via Nav2 |
+| `bus_interfaces` | action/msg definitions for the bus system |
+| `simulation` | Gazebo worlds/models for testing without hardware |
+
+`firmware/stm32/motor_controller` is the STM32G431 firmware for the HBS57H
+STEP/DIR motor controller.
+
+The miniPC runs the ROS 2 side; the STM32 is a separately flashed real-time
+motor board. ROS 2 sends wheel-speed commands over USB serial; the STM32 owns
+the stepping logic.
+
+## Sensors & architecture
+
+LiDAR + encoder/IMU are the navigation backbone; the Astra Pro is a
+supplementary RGB-D perception sensor, **not** the primary localization source.
+
+```
+RPLiDAR A3M1 -> /scan               -> local + global costmap, AMCL, SLAM
+encoder + IMU (STM32) -> /odom       -> odom -> base_link TF
+Astra Pro -> /camera/depth/points    -> local costmap ONLY (3D obstacles)
+Astra Pro -> RGB                     -> Phase 4 person detection
+```
+
+## Build phases
+
+The robot software was brought up in four phases; each has a design doc under
+`docs/` with run steps, close-out criteria, and an error table:
+
+1. **Phase 1 — Camera** (`docs/phase1-camera.md`): Astra Pro streaming
+   RGB/Depth/CameraInfo/TF reliably into RViz2.
+2. **Phase 2 — 3D perception** (`docs/phase2-perception.md`): depth ->
+   PointCloud2, with quantitative checks (depth accuracy, TF, ground-plane
+   tilt, ground noise) via `orbbec_bringup depth_check`.
+3. **Phase 3 — Nav2** (`docs/phase3-nav2.md`): Astra point cloud feeds the
+   local costmap for obstacle avoidance; verified with
+   `orbbec_bringup costmap_contrib`.
+4. **Phase 4 — AI** (`docs/phase4-ai.md`): RGB person detection (YOLO / OpenVINO
+   on the mini PC) -> Nav2 speed limit.
 
 ## Current Deployment Workflow
 
@@ -72,6 +106,21 @@ Run auto explore:
 ```bash
 ros2 launch robot_control auto_explore.launch.py port:=/dev/ttyACM0 lidar_serial_port:=/dev/ttyUSB0
 ```
+
+Navigate on a saved map (build a map first — there is no default real-world map):
+
+```bash
+ros2 launch robot_navigation navigation.launch.py map:=/path/to/my_map.yaml
+```
+
+Run in simulation (Gazebo, uses the bundled `warehouse_12x12` map):
+
+```bash
+ros2 launch robot_navigation sim_navigation.launch.py
+```
+
+Add `rviz:=true` to any launch above to open RViz with the matching layout
+(off by default so a headless robot does not hang).
 
 ## How To Push Through GitHub Actions
 

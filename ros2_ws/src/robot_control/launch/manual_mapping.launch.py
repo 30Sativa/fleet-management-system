@@ -25,6 +25,11 @@ def generate_launch_description():
         'launch',
         'manual_mode.launch.py',
     ])
+    rviz_config = PathJoinSubstitution([
+        FindPackageShare('robot_control'),
+        'rviz',
+        'manual_mapping.rviz',
+    ])
     slam_launch = PathJoinSubstitution([
         FindPackageShare('slam_toolbox'),
         'launch',
@@ -58,6 +63,11 @@ def generate_launch_description():
         DeclareLaunchArgument('slam_params_file',
                               default_value=default_slam_params,
                               description='slam_toolbox parameter file.'),
+        DeclareLaunchArgument(
+            'rviz', default_value='false',
+            description='Open RViz with the mapping layout. Default false so a '
+                        'headless robot does not hang; run RViz on your dev '
+                        'machine, or pass rviz:=true when you have a screen.'),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(manual_launch),
@@ -94,5 +104,13 @@ def generate_launch_description():
                 'use_sim_time': use_sim_time,
                 'slam_params_file': slam_params_file,
             }.items(),
+        ),
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            arguments=['-d', rviz_config],
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('rviz')),
         ),
     ])

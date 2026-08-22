@@ -28,6 +28,11 @@ def generate_launch_description():
         'launch',
         'manual_mode.launch.py',
     ])
+    rviz_config = PathJoinSubstitution([
+        FindPackageShare('robot_control'),
+        'rviz',
+        'manual_mapping.rviz',
+    ])
     slam_launch = PathJoinSubstitution([
         FindPackageShare('slam_toolbox'),
         'launch',
@@ -78,6 +83,11 @@ def generate_launch_description():
         DeclareLaunchArgument('slam_params_file',
                               default_value=default_slam_params,
                               description='slam_toolbox parameter file.'),
+        DeclareLaunchArgument(
+            'rviz', default_value='false',
+            description='Open RViz with the mapping layout. Default false so a '
+                        'headless robot does not hang; run RViz on your dev '
+                        'machine, or pass rviz:=true when you have a screen.'),
         DeclareLaunchArgument('nav2_params_file',
                               default_value=default_nav2_params,
                               description='Nav2 parameter file.'),
@@ -123,10 +133,40 @@ def generate_launch_description():
         ),
 
         GroupAction([
-            SetRemap(src='cmd_vel', dst='/cmd_vel_nav'),
-            SetRemap(src='/cmd_vel', dst='/cmd_vel_nav'),
+            # Nav2 Humble's navigation_launch.py already wires an internal
+            # chain, and it uses BOTH of the names this stack cares about:
+            #
+            #   controller_server  pub "cmd_vel"           -\
+            #   behavior_server    pub "cmd_vel"            |-> nav2 remaps to
+            #   velocity_smoother  sub "cmd_vel"           -/   cmd_vel_nav
+            #   velocity_smoother  pub "cmd_vel_smoothed"  ---> nav2 remaps to
+            #                                                   cmd_vel
+            #
+            # SetRemap rules are inserted BEFORE a node's own remappings, and
+            # rcl applies the FIRST matching rule. So remapping cmd_vel_smoothed
+            # to /cmd_vel_nav made velocity_smoother publish onto the very topic
+            # it subscribes to: a feedback loop. Its own output kept refreshing
+            # last_command_time_, so the velocity_timeout stop never fired, and
+            # /cmd_vel_nav ended up with two competing publishers (raw 10 Hz
+            # controller + smoothed 20 Hz echo), which also defeats
+            # mode_manager's nav_timeout watchdog.
+            #
+            # Fix: rename nav2's INTERNAL topic instead of its output, so each
+            # topic has exactly one publisher:
+            #
+            #   controller_server -\
+            #                       >-> /cmd_vel_ctrl -> velocity_smoother
+            #   behavior_server   -/                          |
+            #                                                 v
+            #                     /cmd_vel_nav -> mode_manager -> /cmd_vel
+            #
+            # NOTE: SetRemap only reaches plain Node actions. Composable nodes
+            # ignore it. navigation_launch.py defaults to use_composition:=False
+            # so this works - but never pass use_composition:=True here or every
+            # rule below is silently dropped and Nav2 drives /cmd_vel directly,
+            # bypassing mode_manager and the e-stop.
+            SetRemap(src='cmd_vel', dst='/cmd_vel_ctrl'),
             SetRemap(src='cmd_vel_smoothed', dst='/cmd_vel_nav'),
-            SetRemap(src='/cmd_vel_smoothed', dst='/cmd_vel_nav'),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(nav2_launch),
                 launch_arguments={
@@ -144,5 +184,13 @@ def generate_launch_description():
             output='screen',
             condition=IfCondition(enable_explorer),
             parameters=[explorer_params_file],
+        ),
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            arguments=['-d', rviz_config],
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('rviz')),
         ),
     ])

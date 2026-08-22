@@ -56,7 +56,7 @@ def generate_launch_description():
             'enable_camera', default_value='true',
             description='Start the Astra Pro camera bringup.'),
         DeclareLaunchArgument(
-            'rviz', default_value='true',
+            'rviz', default_value='false',
             description='Open the mapping view on this laptop.'),
         DeclareLaunchArgument(
             'camera_name', default_value='camera',

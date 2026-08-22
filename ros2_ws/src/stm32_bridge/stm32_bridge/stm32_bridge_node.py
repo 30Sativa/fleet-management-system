@@ -68,7 +68,10 @@ class Stm32BridgeNode(Node):
         self.declare_parameter('publish_odom', True)
         self.declare_parameter('publish_tf', True)
         self.declare_parameter('odom_frame', 'odom')
-        self.declare_parameter('base_frame', 'base_link')
+        # base_footprint, not base_link: the URDF already publishes
+        # base_footprint -> base_link, and odom -> base_link would give
+        # base_link two parents and break the TF tree.
+        self.declare_parameter('base_frame', 'base_footprint')
         self.declare_parameter('publish_sonar', True)
         self.declare_parameter('sonar1_topic', '/ultrasonic/sonar1/range')
         self.declare_parameter('sonar2_topic', '/ultrasonic/sonar2/range')

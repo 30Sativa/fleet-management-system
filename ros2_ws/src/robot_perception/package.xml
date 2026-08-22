@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>robot_perception</name>
+  <version>0.1.0</version>
+  <description>Phase 4: RGB-D person perception feeding Nav2 speed limits.</description>
+
+  <maintainer email="caoduy856@gmail.com">Duy</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>nav2_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>orbbec_bringup</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <!-- OpenVINO runtime is NOT in rosdep. Install with:
+         pip3 install "openvino>=2024.0"
+       Only the runtime is needed on the robot; the model is exported on a
+       laptop, so torch/ultralytics never touch the mini PC. -->
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

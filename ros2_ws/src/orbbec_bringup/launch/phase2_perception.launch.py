@@ -20,14 +20,20 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
+# Starting point, not the answer.  A camera mounted level (pitch 0) at 0.35 m
+# does not see the floor until 0.83 m ahead, so the ground-plane fit finds
+# nothing and reports "qua it diem san" -- which reads like a camera fault and
+# is not one.  0.17 rad ~ 10 deg nose-down puts the floor in frame from the
+# start.  Replace all six with the values section 3 of docs/phase2-perception.md
+# converges on.
 MOUNT_ARGS = [
     ('parent_frame', 'base_link'),
     ('child_frame', 'camera_link'),
-    ('x', '0.0'),
+    ('x', '0.25'),
     ('y', '0.0'),
-    ('z', '0.0'),
+    ('z', '0.35'),
     ('roll', '0.0'),
-    ('pitch', '0.0'),
+    ('pitch', '0.17'),
     ('yaw', '0.0'),
 ]
 
@@ -49,7 +55,10 @@ def generate_launch_description():
             'expected_center_m', default_value='0.0',
             description='Measured distance to a flat target filling the view centre. '
                         '0 skips the absolute-accuracy check.'),
-        DeclareLaunchArgument('rviz', default_value='true'),
+        DeclareLaunchArgument(
+            'rviz', default_value='false',
+            description='Open RViz2 with the Phase 2 point-cloud layout. '
+                        'Off by default; rviz:=true to inspect.'),
         DeclareLaunchArgument(
             'check', default_value='true',
             description='Run the depth_check diagnostic node.'),

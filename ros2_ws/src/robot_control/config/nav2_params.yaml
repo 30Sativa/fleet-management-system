@@ -97,7 +97,14 @@ local_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
-        observation_sources: scan
+        # PHASE 3: two sensors, different jobs.
+        #   scan       - the safety sensor. 360 deg, long range, one height only.
+        #   pointcloud - the Astra. ~58 deg wide, 0.6-3 m, but it sees the things
+        #                a single LiDAR plane cannot: a box on the floor, a pallet
+        #                edge, a table top overhanging into the aisle.
+        # The camera is ADDITIVE. It never replaces the LiDAR and it is not
+        # trusted alone - see expected_update_rate below.
+        observation_sources: scan pointcloud
         scan:
           topic: /scan
           max_obstacle_height: 2.0
@@ -108,6 +115,36 @@ local_costmap:
           raytrace_min_range: 0.0
           obstacle_max_range: 12.0  # A3M1; keep < raytrace so far obstacles still get cleared.
           obstacle_min_range: 0.12
+        pointcloud:
+          topic: /camera/depth/points
+          data_type: PointCloud2
+          marking: true
+          clearing: true
+          # Astra Pro spec is 0.6-8 m, but depth noise grows with range^2 and the
+          # local costmap is only 3x3 m. Past 3 m the camera would just add noise
+          # to cells the LiDAR already covers better.
+          obstacle_min_range: 0.60
+          obstacle_max_range: 3.00
+          raytrace_min_range: 0.60
+          raytrace_max_range: 3.50   # > obstacle_max_range so stale marks get cleared.
+          # Heights are measured in the costmap frame (odom), z=0 at the floor.
+          # 0.08 m is the floor-rejection threshold and it is exactly what Phase 2
+          # bought: ground plane within 20 mm of z=0, ground noise <= 30 mm. Skip
+          # the mount calibration and the floor itself becomes a wall.
+          min_obstacle_height: 0.08
+          max_obstacle_height: 1.20   # above the robot; nothing up there can hit it.
+          # 0.0 = a dead camera never marks this layer stale, so Nav2 keeps driving
+          # on LiDAR alone. That is the deliberate choice: the camera is additive.
+          # Set ~5.0 instead if you would rather Nav2 refuse to move when the
+          # camera stops publishing.
+          expected_update_rate: 0.0
+          inf_is_valid: false
+      # NOT configured, on purpose: a RangeSensorLayer for the two SR04T
+      # sonars that stm32_bridge already publishes and nothing subscribes to.
+      # They see the one thing both other sensors miss - a LOW obstacle CLOSER
+      # than 0.85 m, where the Astra has gone blind and the LiDAR raytraces
+      # straight over it and clears the mark. See docs/phase3-nav2.md section 7
+      # for the ready block and why it is off by default.
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 5.0   # steeper falloff (was 3.0) -> cost drops fast away from walls.
@@ -132,6 +169,12 @@ global_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
+        # PHASE 3: the camera is deliberately NOT a source here. The global
+        # costmap does not roll, so a mark placed by the camera stays until
+        # something raytraces it away - and the camera can only clear inside its
+        # own 58 deg cone. Turn the robot once and every camera mark behind it is
+        # frozen into the global map forever. The planner would route around
+        # obstacles that stopped existing ten minutes ago.
         observation_sources: scan
         scan:
           topic: /scan
