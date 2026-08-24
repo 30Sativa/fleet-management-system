@@ -3,15 +3,39 @@ services:
     image: ${DOCKER_IMAGE:-your-dockerhub-username/robot-ros2:latest}
     container_name: robot-ros2
     network_mode: host
-    restart: unless-stopped
+    # Giai đoạn TEST: tắt auto-restart để bạn hoàn toàn kiểm soát bật/tắt bằng tay.
+    # Khi CHỐT production (muốn robot tự chạy khi bật nguồn), đổi thành:
+    #   restart: unless-stopped
+    restart: "no"
     environment:
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
       RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
       SERIAL_PORT: ${SERIAL_PORT:-/dev/ttyACM0}
       BAUDRATE: ${BAUDRATE:-115200}
+      LIDAR_PORT: ${LIDAR_PORT:-/dev/ttyUSB0}
     devices:
+      # STM32 (motor controller + odom + sonar)
       - "${SERIAL_PORT:-/dev/ttyACM0}:${SERIAL_PORT:-/dev/ttyACM0}"
+      # RPLiDAR A3M1
+      - "${LIDAR_PORT:-/dev/ttyUSB0}:${LIDAR_PORT:-/dev/ttyUSB0}"
+    volumes:
+      # Lưu map RA NGOÀI container: map robot build được nằm ở host, KHÔNG mất
+      # khi container tắt/update image. Trỏ vào package robot_navigation/maps.
+      - ./robot_maps:/maps
+    # KHÔNG hardcode một launch cụ thể ở đây. Container chỉ khởi động ROS env và
+    # giữ sống, để bạn linh hoạt đổi chế độ (build map / auto explore / nav) bằng
+    # cách exec vào container. Camera Astra chạy NATIVE trên host (không đưa vào
+    # container) và vẫn nói chuyện được nhờ network_mode: host + cùng ROS_DOMAIN_ID.
+    #
+    # Chạy một chế độ:
+    #   docker exec -it robot-ros2 bash
+    #   ros2 launch robot_control manual_mapping.launch.py \
+    #     port:=$SERIAL_PORT lidar_serial_port:=$LIDAR_PORT
+    #
+    # Khi CHỐT production 1 chế độ cố định, thay dòng dưới bằng launch mong muốn,
+    # ví dụ:
+    #   command: >
+    #     ros2 launch robot_navigation navigation.launch.py
+    #     map:=/maps/my_map.yaml enable_camera:=false
     command: >
-      ros2 launch stm32_bridge stm32_bridge.launch.py
-      port:=${SERIAL_PORT:-/dev/ttyACM0}
-      baudrate:=${BAUDRATE:-115200}
+      bash -c "sleep infinity"
