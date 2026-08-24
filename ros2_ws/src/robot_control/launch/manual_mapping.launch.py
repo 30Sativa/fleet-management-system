@@ -40,6 +40,11 @@ def generate_launch_description():
         'config',
         'slam_toolbox_online_async.yaml',
     ])
+    scan_filter_params = PathJoinSubstitution([
+        FindPackageShare('robot_control'),
+        'config',
+        'scan_range_filter.yaml',
+    ])
 
     return LaunchDescription([
         DeclareLaunchArgument('port', default_value='/dev/ttyACM0',
@@ -80,6 +85,10 @@ def generate_launch_description():
             }.items(),
         ),
 
+        # RPLiDAR publishes the RAW scan onto /scan_raw. The range filter below
+        # reads /scan_raw, drops every point closer than the vehicle body
+        # radius, and republishes the clean scan onto /scan. SLAM and both
+        # costmaps still read /scan, so nothing downstream needs to change.
         Node(
             package='rplidar_ros',
             executable='rplidar_node',
@@ -96,6 +105,23 @@ def generate_launch_description():
                 'angle_compensate': True,
                 'scan_mode': scan_mode,
             }],
+            remappings=[('scan', 'scan_raw')],
+        ),
+
+        # Range filter: removes LiDAR returns that hit the robot's own body
+        # (everything closer than lower_threshold in scan_range_filter.yaml).
+        # /scan_raw -> filter -> /scan. Needs: sudo apt install ros-humble-laser-filters
+        Node(
+            package='laser_filters',
+            executable='scan_to_scan_filter_chain',
+            name='scan_range_filter',
+            output='screen',
+            condition=IfCondition(enable_lidar),
+            parameters=[scan_filter_params],
+            remappings=[
+                ('scan', 'scan_raw'),
+                ('scan_filtered', 'scan'),
+            ],
         ),
 
         IncludeLaunchDescription(

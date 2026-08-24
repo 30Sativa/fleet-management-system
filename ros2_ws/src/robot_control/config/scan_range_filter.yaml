@@ -1,0 +1,19 @@
+scan_filter_chain:
+  ros__parameters:
+    filter1:
+      name: range_filter
+      type: laser_filters/LaserScanRangeFilter
+      params:
+        # Bỏ mọi điểm gần hơn lower_threshold: đây là bán kính thân xe che LiDAR.
+        # Xe 74x55cm, LiDAR ở giữa nóc. 0.30 m che khung/nắp quanh LiDAR.
+        #  - Còn thấy chấm giả sát xe -> tăng 0.35.
+        #  - Bị mất vật thật ở gần -> giảm 0.25.
+        lower_threshold: 0.30
+        # Giữ nguyên tầm xa tối đa của A3M1 (khớp max_laser_range SLAM = 12 m).
+        upper_threshold: 12.0
+        # Điểm bị lọc -> đặt thành inf (vô cực), KHÔNG phải 0.
+        # inf = "không có vật ở hướng này", để costmap raytrace/clear đúng.
+        # 0 hoặc NaN sẽ bị hiểu nhầm là vật cản sát robot.
+        use_message_range_limits: false
+        lower_replacement_value: .inf
+        upper_replacement_value: .inf
