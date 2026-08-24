@@ -4,11 +4,21 @@ scan_filter_chain:
       name: range_filter
       type: laser_filters/LaserScanRangeFilter
       params:
-        # Bỏ mọi điểm gần hơn lower_threshold: đây là bán kính thân xe che LiDAR.
-        # Xe 74x55cm, LiDAR ở giữa nóc. 0.30 m che khung/nắp quanh LiDAR.
-        #  - Còn thấy chấm giả sát xe -> tăng 0.35.
-        #  - Bị mất vật thật ở gần -> giảm 0.25.
-        lower_threshold: 0.30
+        # Bỏ mọi điểm gần hơn lower_threshold (mét), tính từ TÂM LiDAR.
+        #
+        # Xe: 74 x 55 cm, LiDAR ở GIỮA NÓC và nhô cao hơn thân.
+        #   - Mép xe gần nhất (theo bề ngang) ~ 55/2 = 0.275 m từ tâm.
+        #   - Vì LiDAR nhô cao, tia bay NGANG PHÍA TRÊN thân -> không đâm khung.
+        #
+        # => Đặt 0.20 m: đủ để bỏ nhiễu sát đế/chân LiDAR ngay dưới nó, NHƯNG
+        #    KHÔNG mù cả vùng thân xe. Đặt lớn (0.30+) sẽ tạo "vùng mù" 30 cm
+        #    quanh xe -> vật thật đặt sát xe không thấy -> ĐỤNG. Nên giữ nhỏ.
+        #
+        # Tinh chỉnh sau khi xem /scan trong RViz:
+        #   - VẪN còn chấm giả bám đúng thân xe  -> tăng dần 0.02 mỗi lần (0.22, 0.24...).
+        #     Chỉ tăng tới khi vừa hết chấm giả, ĐỪNG tăng dư.
+        #   - Vật thật sát xe không hiện / bị đụng -> giảm xuống 0.15.
+        lower_threshold: 0.20
         # Giữ nguyên tầm xa tối đa của A3M1 (khớp max_laser_range SLAM = 12 m).
         upper_threshold: 12.0
         # Điểm bị lọc -> đặt thành inf (vô cực), KHÔNG phải 0.

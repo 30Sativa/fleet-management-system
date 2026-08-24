@@ -113,6 +113,11 @@ def generate_launch_description():
         'config',
         'nav2_params.yaml',
     ])
+    scan_filter_params = PathJoinSubstitution([
+        FindPackageShare('robot_control'),
+        'config',
+        'scan_range_filter.yaml',
+    ])
 
     return LaunchDescription([
         DeclareLaunchArgument('port', default_value='/dev/ttyACM0',
@@ -197,7 +202,9 @@ def generate_launch_description():
             }.items(),
         ),
 
-        # 2) LiDAR -> /scan (AMCL + costmaps).
+        # 2) LiDAR -> /scan_raw, then range filter -> /scan (AMCL + costmaps).
+        #    The filter drops points that hit the robot's own body so they are
+        #    not localized against or treated as obstacles.
         Node(
             package='rplidar_ros',
             executable='rplidar_node',
@@ -214,6 +221,22 @@ def generate_launch_description():
                 'angle_compensate': True,
                 'scan_mode': scan_mode,
             }],
+            remappings=[('scan', 'scan_raw')],
+        ),
+
+        # 2a) Range filter: /scan_raw -> filter -> /scan. Removes robot-body
+        #     returns. Needs ros-humble-laser-filters.
+        Node(
+            package='laser_filters',
+            executable='scan_to_scan_filter_chain',
+            name='scan_range_filter',
+            output='screen',
+            condition=IfCondition(enable_lidar),
+            parameters=[scan_filter_params],
+            remappings=[
+                ('scan', 'scan_raw'),
+                ('scan_filtered', 'scan'),
+            ],
         ),
 
         # 2b) Astra Pro -> /camera/depth/points, plus base_link -> camera_link.

@@ -58,6 +58,11 @@ def generate_launch_description():
         'config',
         'frontier_explorer.yaml',
     ])
+    scan_filter_params = PathJoinSubstitution([
+        FindPackageShare('robot_control'),
+        'config',
+        'scan_range_filter.yaml',
+    ])
 
     return LaunchDescription([
         DeclareLaunchArgument('port', default_value='/dev/ttyACM0',
@@ -106,6 +111,8 @@ def generate_launch_description():
             }.items(),
         ),
 
+        # RPLiDAR -> /scan_raw. The range filter below drops points that hit the
+        # robot's own body and republishes the clean scan onto /scan.
         Node(
             package='rplidar_ros',
             executable='rplidar_node',
@@ -122,6 +129,22 @@ def generate_launch_description():
                 'angle_compensate': True,
                 'scan_mode': scan_mode,
             }],
+            remappings=[('scan', 'scan_raw')],
+        ),
+
+        # Range filter: removes LiDAR returns from the robot body.
+        # /scan_raw -> filter -> /scan. Needs ros-humble-laser-filters.
+        Node(
+            package='laser_filters',
+            executable='scan_to_scan_filter_chain',
+            name='scan_range_filter',
+            output='screen',
+            condition=IfCondition(enable_lidar),
+            parameters=[scan_filter_params],
+            remappings=[
+                ('scan', 'scan_raw'),
+                ('scan_filtered', 'scan'),
+            ],
         ),
 
         IncludeLaunchDescription(
