@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 
 from action_msgs.srv import CancelGoal
@@ -92,10 +93,20 @@ class ModeManagerNode(Node):
         self._publish_zero('startup')
 
     def _manual_callback(self, msg: Twist):
+        if not self._is_finite_twist(msg):
+            self._manual_cmd = None
+            self._last_manual_time = None
+            self.get_logger().error('Rejected non-finite manual velocity command.')
+            return
         self._manual_cmd = self._copy_twist(msg)
         self._last_manual_time = self._now()
 
     def _nav_callback(self, msg: Twist):
+        if not self._is_finite_twist(msg):
+            self._nav_cmd = None
+            self._last_nav_time = None
+            self.get_logger().error('Rejected non-finite Nav2 velocity command.')
+            return
         self._nav_cmd = self._copy_twist(msg)
         self._last_nav_time = self._now()
 
@@ -119,6 +130,7 @@ class ModeManagerNode(Node):
         self._emergency_stop = requested
         if self._emergency_stop:
             self._publish_zero('emergency_stop')
+            self._request_nav2_cancel()
             self.get_logger().error(
                 'Emergency stop engaged. /cmd_vel forced to zero until reset.')
             response.message = 'Emergency stop engaged.'
@@ -244,7 +256,7 @@ class ModeManagerNode(Node):
 
     def _positive_float_parameter(self, name: str, fallback: float) -> float:
         value = float(self.get_parameter(name).value)
-        if value <= 0.0:
+        if not math.isfinite(value) or value <= 0.0:
             self.get_logger().warn(
                 f'{name} must be > 0. Falling back to {fallback}.')
             return fallback
@@ -263,7 +275,21 @@ class ModeManagerNode(Node):
 
     @staticmethod
     def _is_recent(stamp: Optional[float], timeout: float, now: float) -> bool:
-        return stamp is not None and (now - stamp) <= timeout
+        if stamp is None:
+            return False
+        age = now - stamp
+        return 0.0 <= age <= timeout
+
+    @staticmethod
+    def _is_finite_twist(msg: Twist) -> bool:
+        return all(math.isfinite(value) for value in (
+            msg.linear.x,
+            msg.linear.y,
+            msg.linear.z,
+            msg.angular.x,
+            msg.angular.y,
+            msg.angular.z,
+        ))
 
     @staticmethod
     def _copy_twist(msg: Twist) -> Twist:

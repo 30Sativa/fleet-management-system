@@ -163,3 +163,69 @@ def test_deproject_inverts_project():
     v = fy * p[1] / p[2] + cy
     back = np.array([(u - cx) * p[2] / fx, (v - cy) * p[2] / fy, p[2]])
     assert np.allclose(back, p, atol=1e-5)
+
+
+def test_people_pose_is_not_modified_by_marker_height():
+    class V:
+        def __init__(self):
+            self.x = self.y = self.z = 0.0
+
+    class Pose:
+        def __init__(self):
+            self.position = V()
+            self.orientation = V()
+            self.orientation.w = 0.0
+
+    class PoseArray:
+        def __init__(self):
+            self.header = types.SimpleNamespace(stamp=None, frame_id='')
+            self.poses = []
+
+    class Marker:
+        CYLINDER = 3
+        ADD = 0
+        DELETEALL = 3
+
+        def __init__(self):
+            self.header = None
+            self.ns = ''
+            self.id = 0
+            self.type = 0
+            self.action = 0
+            self.pose = Pose()
+            self.scale = V()
+            self.color = types.SimpleNamespace(r=0.0, g=0.0, b=0.0, a=0.0)
+            self.lifetime = types.SimpleNamespace(sec=0)
+
+    class MarkerArray:
+        def __init__(self):
+            self.markers = []
+
+    class Publisher:
+        def __init__(self):
+            self.message = None
+
+        def publish(self, message):
+            self.message = message
+
+    old_types = P.Pose, P.PoseArray, P.Marker, P.MarkerArray
+    P.Pose, P.PoseArray, P.Marker, P.MarkerArray = (
+        Pose, PoseArray, Marker, MarkerArray)
+    try:
+        node = types.SimpleNamespace(
+            base_frame='base_link',
+            people_pub=Publisher(),
+            marker_pub=Publisher(),
+            limit_pub=Publisher(),
+            last_limit=None,
+            get_clock=lambda: types.SimpleNamespace(
+                now=lambda: types.SimpleNamespace(to_msg=lambda: object())),
+            get_parameter=lambda _name: types.SimpleNamespace(value=False),
+            _policy=lambda _people: 100.0,
+            _publish_limit=lambda _percent: None,
+        )
+        P.PersonPerceptionNode._publish(node, [np.array([1.0, 2.0, 3.0])])
+        assert node.people_pub.message.poses[0].position.z == 3.0
+        assert node.marker_pub.message.markers[1].pose.position.z == 0.85
+    finally:
+        P.Pose, P.PoseArray, P.Marker, P.MarkerArray = old_types

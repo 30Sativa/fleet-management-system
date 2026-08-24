@@ -58,6 +58,7 @@ class StopNavigator(Node):
         self._current_stop = ''
         self._target_stop = ''
         self._distance_remaining = 0.0
+        self._goal_reserved = False
 
         cb_group = ReentrantCallbackGroup()
         self._nav_client = ActionClient(
@@ -117,7 +118,7 @@ class StopNavigator(Node):
     # ------------------------------------------------------------------
     def _on_goal(self, goal_request):
         with self._lock:
-            busy = self._state == NAVIGATING
+            busy = self._goal_reserved
         if busy:
             self.get_logger().warn(
                 'Rejecting go_to_stop: already navigating. '
@@ -128,6 +129,12 @@ class StopNavigator(Node):
                 f'Rejecting unknown stop "{goal_request.stop_id}". '
                 f'Known: {sorted(self._stops.keys())}')
             return GoalResponse.REJECT
+        with self._lock:
+            # Reserve before returning ACCEPT. With a reentrant callback group,
+            # another goal callback may run before this goal starts executing.
+            if self._goal_reserved:
+                return GoalResponse.REJECT
+            self._goal_reserved = True
         return GoalResponse.ACCEPT
 
     def _on_cancel(self, goal_handle):
@@ -142,6 +149,7 @@ class StopNavigator(Node):
         def finish(success, message, terminal):
             with self._lock:
                 self._state = IDLE if success or terminal != 'abort' else ERROR
+                self._goal_reserved = False
                 self._target_stop = ''
                 self._distance_remaining = 0.0
                 if success:
@@ -156,6 +164,9 @@ class StopNavigator(Node):
             else:
                 goal_handle.succeed()
             return result
+
+        if goal_handle.is_cancel_requested:
+            return finish(False, 'canceled', 'cancel')
 
         if not self._nav_client.wait_for_server(
                 timeout_sec=self.nav2_wait_timeout):
@@ -179,7 +190,11 @@ class StopNavigator(Node):
             nav_goal, feedback_callback=on_nav_feedback)
         if not self._wait(send_future, self.nav2_wait_timeout):
             return finish(False, 'nav2_send_goal_timeout', 'abort')
-        nav_handle = send_future.result()
+        try:
+            nav_handle = send_future.result()
+        except Exception as exc:  # noqa: BLE001 - action future exceptions vary
+            self.get_logger().error(f'Nav2 goal request failed: {exc}')
+            return finish(False, 'nav2_send_goal_failed', 'abort')
         if nav_handle is None or not nav_handle.accepted:
             return finish(False, 'nav2_rejected_goal', 'abort')
 
@@ -199,7 +214,14 @@ class StopNavigator(Node):
             feedback.nav_state = 'navigating'
             goal_handle.publish_feedback(feedback)
 
-        status = result_future.result().status
+        try:
+            nav_result = result_future.result()
+        except Exception as exc:  # noqa: BLE001 - action future exceptions vary
+            self.get_logger().error(f'Nav2 result failed: {exc}')
+            return finish(False, 'nav2_result_failed', 'abort')
+        if nav_result is None:
+            return finish(False, 'nav2_result_missing', 'abort')
+        status = nav_result.status
         if status == GoalStatus.STATUS_SUCCEEDED:
             self.get_logger().info(f'Arrived at stop "{stop_id}".')
             return finish(True, 'arrived', 'succeed')

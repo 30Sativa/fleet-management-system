@@ -16,6 +16,7 @@ import math
 import os
 import sys
 import types
+from types import SimpleNamespace
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +286,35 @@ def test_yaw_quaternion_roundtrip():
         qx, qy, qz, qw = Stm32BridgeNode._yaw_to_quaternion(yaw)
         recovered = math.atan2(2.0 * qw * qz, 1.0 - 2.0 * qz * qz)
         approx(recovered, yaw, tol=1e-9)
+
+
+def test_non_finite_twist_is_rejected():
+    def twist(linear_x=0.0, angular_z=0.0):
+        return SimpleNamespace(
+            linear=SimpleNamespace(x=linear_x, y=0.0, z=0.0),
+            angular=SimpleNamespace(x=0.0, y=0.0, z=angular_z),
+        )
+
+    assert Stm32BridgeNode._is_finite_twist(twist(0.2, -0.1))
+    assert not Stm32BridgeNode._is_finite_twist(twist(float('nan'), 0.0))
+    assert not Stm32BridgeNode._is_finite_twist(twist(0.0, float('inf')))
+
+
+def test_imu_starts_aligned_and_invalid_sample_falls_back():
+    node = Stm32BridgeNode.__new__(Stm32BridgeNode)
+    node._theta = 1.0
+    node._imu_yaw = None
+    node._imu_yaw_offset = None
+
+    node._update_imu_heading(2.0)
+    approx(node._imu_yaw, 1.0)
+
+    node._update_imu_heading(None)
+    assert node._imu_yaw is None
+
+    node._theta = 1.1
+    node._update_imu_heading(2.1)
+    approx(node._imu_yaw, 1.1)
 
 
 def _run_all():

@@ -45,9 +45,14 @@
 #define SHTP_REPORT_SET_FEATURE_COMMAND 0xFD
 #define Q14_SCALE   (1.0f / 16384.0f)
 
+#ifndef BNO08X_YAW_TIMEOUT_MS
+#define BNO08X_YAW_TIMEOUT_MS 200U
+#endif
+
 static uint8_t s_seq[8];
 static float   s_last_yaw = 0.0f;
 static uint8_t s_yaw_valid = 0U;
+static uint32_t s_last_yaw_ms = 0U;
 
 /* ---- delay & line control ----
  * I2C uses open-drain lines: writing HIGH releases the line, writing LOW
@@ -201,6 +206,9 @@ void BNO08x_Init(void)
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOA_CLK_ENABLE();
     memset(s_seq, 0, sizeof(s_seq));
+    s_last_yaw = 0.0f;
+    s_yaw_valid = 0U;
+    s_last_yaw_ms = 0U;
 
 #if BNO08X_USE_HW_RST || BNO08X_USE_INT_PIN
     GPIO_InitTypeDef g = {0};
@@ -357,12 +365,16 @@ uint8_t BNO08x_ReadRotationVector(float *qi, float *qj, float *qk, float *qr,
 
         s_last_yaw = euler->yaw;
         s_yaw_valid = 1U;
+        s_last_yaw_ms = HAL_GetTick();
     }
     return 1U;
 }
 
 float BNO08x_GetLastYaw(uint8_t *valid)
 {
-    if (valid) *valid = s_yaw_valid;
+    uint8_t fresh = (uint8_t)(
+        (s_yaw_valid != 0U) &&
+        ((uint32_t)(HAL_GetTick() - s_last_yaw_ms) <= BNO08X_YAW_TIMEOUT_MS));
+    if (valid) *valid = fresh;
     return s_last_yaw;
 }

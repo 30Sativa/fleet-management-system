@@ -151,35 +151,48 @@ class Stm32BridgeNode(Node):
             DEFAULT_TWIST_COVARIANCE_DIAGONAL,
         )
 
-        if self.send_rate_hz <= 0.0:
+        if not math.isfinite(self.send_rate_hz) or self.send_rate_hz <= 0.0:
             self.get_logger().warn(
                 'send_rate_hz must be > 0. Falling back to 20 Hz.')
             self.send_rate_hz = 20.0
 
-        if self.cmd_timeout <= 0.0:
+        if not math.isfinite(self.cmd_timeout) or self.cmd_timeout <= 0.0:
             self.get_logger().warn(
                 'cmd_timeout must be > 0. Falling back to 0.5 s.')
             self.cmd_timeout = 0.5
 
-        if self.feedback_timeout <= 0.0:
+        if not math.isfinite(self.feedback_timeout) or self.feedback_timeout <= 0.0:
             self.get_logger().warn(
                 'feedback_timeout must be > 0. Falling back to 1.0 s.')
             self.feedback_timeout = 1.0
 
-        if self.feedback_rate_warn_hz <= 0.0:
+        if (not math.isfinite(self.feedback_rate_warn_hz) or
+                self.feedback_rate_warn_hz <= 0.0):
             self.get_logger().warn(
                 'feedback_rate_warn_hz must be > 0. Falling back to 2 Hz.')
             self.feedback_rate_warn_hz = 2.0
 
-        if self.max_wheel_speed_mm_s <= 0.0:
+        if (not math.isfinite(self.max_wheel_speed_mm_s) or
+                self.max_wheel_speed_mm_s <= 0.0):
             self.get_logger().warn(
                 'max_wheel_speed_mm_s must be > 0. Falling back to 250 mm/s.')
             self.max_wheel_speed_mm_s = 250.0
 
-        if self.max_steps_per_sec <= 0.0:
+        if (not math.isfinite(self.max_steps_per_sec) or
+                self.max_steps_per_sec <= 0.0):
             self.get_logger().warn(
                 'max_steps_per_sec must be > 0. Falling back to 12000.')
             self.max_steps_per_sec = 12000.0
+
+        if not math.isfinite(self.wheel_base) or self.wheel_base <= 0.0:
+            self.get_logger().warn(
+                'wheel_base must be > 0. Falling back to 0.46 m.')
+            self.wheel_base = 0.46
+
+        if not math.isfinite(self.speed_scale) or self.speed_scale < 0.0:
+            self.get_logger().warn(
+                'speed_scale must be finite and >= 0. Falling back to 0.3.')
+            self.speed_scale = 0.3
 
         self.steps_per_meter = self._compute_steps_per_meter()
         self._feedback_warn_period = 1.0 / self.feedback_rate_warn_hz
@@ -253,6 +266,12 @@ class Stm32BridgeNode(Node):
             1.0 / self.send_rate_hz, self._timer_callback)
 
     def _cmd_vel_callback(self, msg: Twist):
+        if not self._is_finite_twist(msg):
+            self.get_logger().error(
+                'Ignoring non-finite /cmd_vel and entering safe stop state.')
+            self._enter_safe_stop_state('non_finite_cmd_vel')
+            return
+
         left_mm_s = (
             msg.linear.x - msg.angular.z * self.wheel_base / 2.0) * 1000.0
         right_mm_s = (
@@ -443,11 +462,7 @@ class Stm32BridgeNode(Node):
         (seq, left_count, right_count, dt_ms, status, yaw_rad,
          sonar1, sonar2) = parsed
 
-        # Cap nhat yaw IMU (zero-hoa lan dau de heading bat dau tu 0).
-        if yaw_rad is not None:
-            if self._imu_yaw_offset is None:
-                self._imu_yaw_offset = yaw_rad
-            self._imu_yaw = self._normalize_angle(yaw_rad - self._imu_yaw_offset)
+        self._update_imu_heading(yaw_rad)
         now_mono = time.monotonic()
         now_ros = self.get_clock().now()
         now_ros_sec = now_ros.nanoseconds / 1e9
@@ -501,6 +516,19 @@ class Stm32BridgeNode(Node):
             dt,
         )
         self._publish_odometry(now_ros, linear_velocity, angular_velocity)
+
+    def _update_imu_heading(self, yaw_rad: Optional[float]):
+        if yaw_rad is None or not math.isfinite(yaw_rad):
+            self._imu_yaw = None
+            return
+
+        if self._imu_yaw_offset is None:
+            # Align the first IMU sample with the current encoder heading. This
+            # avoids snapping odom back to zero when IMU data starts late.
+            self._imu_yaw_offset = self._normalize_angle(
+                yaw_rad - self._theta)
+        self._imu_yaw = self._normalize_angle(
+            yaw_rad - self._imu_yaw_offset)
 
     def _parse_feedback_line(
             self,
@@ -800,23 +828,24 @@ class Stm32BridgeNode(Node):
 
     def _compute_steps_per_meter(self) -> float:
         wheel_circumference = 2.0 * math.pi * self.wheel_radius
-        if wheel_circumference <= 0.0:
+        if (not math.isfinite(wheel_circumference) or
+                wheel_circumference <= 0.0):
             self.get_logger().warn(
                 'wheel_radius must be > 0. Falling back to 0.095 m.')
             self.wheel_radius = 0.095
             wheel_circumference = 2.0 * math.pi * self.wheel_radius
 
-        if self.steps_per_rev <= 0.0:
+        if not math.isfinite(self.steps_per_rev) or self.steps_per_rev <= 0.0:
             self.get_logger().warn(
                 'steps_per_rev must be > 0. Falling back to 200.')
             self.steps_per_rev = 200.0
 
-        if self.microstep <= 0.0:
+        if not math.isfinite(self.microstep) or self.microstep <= 0.0:
             self.get_logger().warn(
                 'microstep must be > 0. Falling back to 8.')
             self.microstep = 8.0
 
-        if self.gear_ratio <= 0.0:
+        if not math.isfinite(self.gear_ratio) or self.gear_ratio <= 0.0:
             self.get_logger().warn(
                 'gear_ratio must be > 0. Falling back to 10.')
             self.gear_ratio = 10.0
@@ -895,6 +924,17 @@ class Stm32BridgeNode(Node):
             msg.angular.z,
         )
         return all(math.isclose(value, 0.0, abs_tol=1e-9) for value in values)
+
+    @staticmethod
+    def _is_finite_twist(msg: Twist) -> bool:
+        return all(math.isfinite(value) for value in (
+            msg.linear.x,
+            msg.linear.y,
+            msg.linear.z,
+            msg.angular.x,
+            msg.angular.y,
+            msg.angular.z,
+        ))
 
     def destroy_node(self):
         try:

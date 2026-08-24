@@ -320,6 +320,7 @@ class PersonPerceptionNode(Node):
             img = self._rgb_array(self.rgb)
         except ValueError as exc:
             self.get_logger().warn(str(exc), throttle_duration_sec=10.0)
+            self._publish_limit(100.0)
             return
 
         import cv2
@@ -334,6 +335,7 @@ class PersonPerceptionNode(Node):
             out = self.net.infer({0: blob})
         except Exception as exc:  # noqa: BLE001
             self.get_logger().error(f'infer loi: {exc}', throttle_duration_sec=10.0)
+            self._publish_limit(100.0)
             return
         self.sum_ms += (time.perf_counter() - t0) * 1000.0
         self.n_infer += 1
@@ -416,8 +418,10 @@ class PersonPerceptionNode(Node):
             m.id = i
             m.type = Marker.CYLINDER
             m.action = Marker.ADD
-            m.pose = pose
+            m.pose.position.x = pose.position.x
+            m.pose.position.y = pose.position.y
             m.pose.position.z = 0.85
+            m.pose.orientation.w = 1.0
             m.scale.x = m.scale.y = 0.5
             m.scale.z = 1.7
             m.color.r, m.color.g, m.color.b, m.color.a = 1.0, 0.6, 0.0, 0.6
@@ -435,8 +439,6 @@ class PersonPerceptionNode(Node):
         self.people_pub.publish(pa)
         self.marker_pub.publish(markers)
 
-        if not self.get_parameter('publish_speed_limit').value:
-            return
         self._publish_limit(self._policy(people))
 
     def _policy(self, people):
@@ -456,8 +458,16 @@ class PersonPerceptionNode(Node):
         return 100.0
 
     def _publish_limit(self, percent):
-        if self.last_limit is not None and abs(percent - self.last_limit) < 0.5:
+        if not self.get_parameter('publish_speed_limit').value:
             return
+
+        percent = float(percent)
+        if not math.isfinite(percent):
+            percent = 100.0
+        percent = max(1.0, min(100.0, percent))
+        changed = self.last_limit is None or abs(percent - self.last_limit) >= 0.5
+
+        # Repeat the current limit so a late/restarted Nav2 subscriber receives it.
         msg = SpeedLimit()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = self.base_frame
@@ -465,7 +475,8 @@ class PersonPerceptionNode(Node):
         msg.speed_limit = float(percent)
         self.limit_pub.publish(msg)
         self.last_limit = percent
-        self.get_logger().info(f'speed_limit -> {percent:.0f}%')
+        if changed:
+            self.get_logger().info(f'speed_limit -> {percent:.0f}%')
 
     def _report(self):
         if self.net is None:
