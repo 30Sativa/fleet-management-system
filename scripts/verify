@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Repo-wide verification dispatcher.
+#
+#   scripts/verify              -> every folder that has a verify script
+#   scripts/verify robot        -> one folder
+#   scripts/verify robot web    -> several
+#
+# Exit code is the contract:  0 = PASS, non-zero = FAIL.
+# A folder script may exit 3 to mean SKIPPED (nothing to verify yet).
+
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT" || exit 1
+
+if [ "$#" -gt 0 ]; then
+  TARGETS=("$@")
+else
+  TARGETS=(robot backend web)
+fi
+
+failed=()
+passed=()
+skipped=()
+
+for t in "${TARGETS[@]}"; do
+  script="$t/scripts/verify"
+  if [ ! -f "$script" ]; then
+    skipped+=("$t (no $script)")
+    continue
+  fi
+  echo
+  echo "############################################################"
+  echo "# $t"
+  echo "############################################################"
+  bash "$script"
+  rc=$?
+  case "$rc" in
+    0) passed+=("$t") ;;
+    3) skipped+=("$t (nothing to verify yet)") ;;
+    *) failed+=("$t") ;;
+  esac
+done
+
+echo
+echo "============================================================"
+echo "SUMMARY"
+echo "============================================================"
+for t in "${passed[@]:-}";  do [ -n "$t" ] && echo "  PASS     $t"; done
+for t in "${skipped[@]:-}"; do [ -n "$t" ] && echo "  SKIPPED  $t"; done
+for t in "${failed[@]:-}";  do [ -n "$t" ] && echo "  FAIL     $t"; done
+
+if [ "${#failed[@]}" -gt 0 ]; then
+  echo
+  echo "Verification failed."
+  exit 1
+fi
+
+echo
+echo "Verification passed."

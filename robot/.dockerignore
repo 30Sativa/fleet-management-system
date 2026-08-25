@@ -1,0 +1,24 @@
+# Build context is robot/ . Everything here is relative to robot/ .
+# Only ros2_ws/src and docker/ actually need to enter the image.
+
+docs
+tools
+firmware
+scripts
+AGENTS.md
+README.md
+*.md
+
+docker-compose.yml
+robot_maps
+
+**/.gitignore
+**/.vscode
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+
+ros2_ws/build
+ros2_ws/install
+ros2_ws/log
+ros2_ws/src/third_party

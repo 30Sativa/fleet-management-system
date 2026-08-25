@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# TODO(WP5): thay toàn bộ phần dưới bằng lệnh thật khi backend có code.
+#   Gợi ý thứ tự:  typecheck -> lint -> unit test -> production build
+#   Bắt buộc: exit 0 khi pass, exit != 0 khi fail. Đừng nuốt lỗi bằng `|| true`.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+if [ ! -f package.json ] && [ ! -f pyproject.toml ] && [ ! -f go.mod ]; then
+  echo "SKIPPED: web/ chưa có source. Không có gì để verify."
+  exit 0
+fi
+
+echo "FAIL: web/ đã có source nhưng scripts/verify chưa được điền."
+echo "      Mở web/scripts/verify và thay phần TODO bằng lệnh thật."
+exit 1

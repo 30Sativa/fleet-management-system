@@ -1,5 +1,5 @@
 {
   "urdf-visualizer.packages": {
-    "robot_description": "${workspaceFolder}/ros2_ws/src/robot_description"
+    "robot_description": "${workspaceFolder}/robot/ros2_ws/src/robot_description"
   }
 }

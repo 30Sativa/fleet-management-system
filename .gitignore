@@ -437,3 +437,6 @@ FodyWeavers.xsd
 # these target model IR living next to a same-named .bin)
 **/models/**/*.xml
 **/models/**/*.bin
+
+# Rác chờ xoá tay (agent không có quyền delete file trên máy bạn)
+_to_delete/

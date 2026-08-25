@@ -2,16 +2,10 @@ name: Build and Push ROS2 Docker Image
 
 on:
   pull_request:
-    paths:
-      - "robot/**"
-      - ".github/workflows/docker-build-push.yml"
   push:
     branches:
       - main
       - master
-    paths:
-      - "robot/**"
-      - ".github/workflows/docker-build-push.yml"
   workflow_dispatch:
 
 env:
@@ -60,8 +54,8 @@ jobs:
       - name: Build image on PR, build and push on main/master
         uses: docker/build-push-action@v6
         with:
-          context: ./robot
-          file: ./robot/Dockerfile
+          context: .
+          file: ./Dockerfile
           build-args: |
             ROS_DISTRO=${{ env.ROS_DISTRO }}
           push: ${{ github.event_name == 'push' }}

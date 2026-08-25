@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# robot/ verification gate.
+#
+#   Tier 1 — static checks. Run anywhere, no ROS needed.
+#   Tier 2 — colcon build + colcon test. Needs a sourced ROS 2 Humble env.
+#   Tier 3 — behaviour on the robot / in Gazebo. NOT automated. A human runs it.
+#            Close-out criteria live in robot/docs/phase*.md.
+#
+# Exit code is the contract:  0 = PASS, non-zero = FAIL.
+# A SKIPPED tier is not a pass — read the summary before claiming anything.
+
+set -uo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1   # -> robot/
+SRC="ros2_ws/src"
+
+FAILURES=0
+SKIPS=()
+
+section() { echo; echo "== $1 =="; echo; }
+fail()    { echo; echo "FAILED"; FAILURES=$((FAILURES + 1)); }
+ok()      { echo "ok"; }
+skip()    { echo "SKIPPED: $1"; SKIPS+=("$2"); }
+
+# Files we own. Excludes vendored code and build output.
+py_files() {
+  find "$SRC" -name '*.py' \
+    -not -path '*/third_party/*' \
+    -not -path '*/build/*' -not -path '*/install/*' -not -path '*/log/*' \
+    -not -path '*/__pycache__/*' 2>/dev/null
+}
+yaml_files() {
+  find "$SRC" \( -name '*.yaml' -o -name '*.yml' \) \
+    -not -path '*/third_party/*' \
+    -not -path '*/build/*' -not -path '*/install/*' -not -path '*/log/*' 2>/dev/null
+}
+
+# ---------------------------------------------------------------- TIER 1
+
+section "Tier 1.1 - Python syntax"
+if ! command -v python3 >/dev/null 2>&1; then
+  skip "python3 not found" "python syntax"
+else
+  if py_files | python3 -c '
+import sys
+files = [l.strip() for l in sys.stdin if l.strip()]
+bad = 0
+for f in files:
+    try:
+        with open(f, encoding="utf-8") as fh:
+            compile(fh.read(), f, "exec")
+    except SyntaxError as e:
+        print(f + ":" + str(e.lineno) + ":" + str(e.offset or 0) + " " + e.msg)
+        bad += 1
+    except Exception as e:
+        print(f + ": " + " ".join(str(e).split()))
+        bad += 1
+print("checked " + str(len(files)) + " file(s)")
+sys.exit(1 if bad else 0)
+'; then ok; else fail; fi
+fi
+
+section "Tier 1.2 - Lint (ruff)"
+if ! command -v ruff >/dev/null 2>&1; then
+  skip "ruff not installed  (pip install ruff)" "ruff lint"
+else
+  if ruff check "$SRC" \
+      --exclude third_party --exclude build --exclude install --exclude log; then
+    ok
+  else
+    fail
+  fi
+fi
+
+section "Tier 1.3 - YAML parse (config + launch params)"
+if ! python3 -c 'import yaml' >/dev/null 2>&1; then
+  skip "PyYAML not installed  (pip install pyyaml)" "yaml parse"
+else
+  if yaml_files | python3 -c '
+import sys, yaml
+files = [l.strip() for l in sys.stdin if l.strip()]
+bad = 0
+for f in files:
+    try:
+        with open(f, encoding="utf-8") as fh:
+            yaml.safe_load(fh)
+    except Exception as e:
+        print(f + ": " + " ".join(str(e).split()))
+        bad += 1
+print("checked " + str(len(files)) + " file(s)")
+sys.exit(1 if bad else 0)
+'; then ok; else fail; fi
+fi
+
+section "Tier 1.4 - URDF/xacro parse"
+XACROS=$(find "$SRC" -name '*.xacro' -not -path '*/build/*' -not -path '*/install/*' 2>/dev/null)
+if [ -z "$XACROS" ]; then
+  skip "no .xacro files found" "xacro parse"
+elif ! command -v xacro >/dev/null 2>&1; then
+  skip "xacro not on PATH (needs a sourced ROS 2 env)" "xacro parse"
+else
+  bad=0
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    xacro "$f" > /dev/null || { echo "  ^ failed: $f"; bad=$((bad + 1)); }
+  done <<< "$XACROS"
+  if [ "$bad" -gt 0 ]; then fail; else ok; fi
+fi
+
+section "Tier 1.5 - No build output tracked by git"
+if ! command -v git >/dev/null 2>&1; then
+  skip "git not found" "build-output guard"
+else
+  DIRTY=$(git -C .. ls-files 2>/dev/null | grep -E \
+    '(^|/)(build|install|log)/|__pycache__|\.pyc$|/Debug/.*\.(elf|bin|hex|map|list|o|d|su|cyclo)$|(^|/)node_modules/' \
+    || true)
+  if [ -n "$DIRTY" ]; then
+    echo "These build artifacts are tracked by git and should not be:"
+    echo "$DIRTY" | head -20
+    echo
+    echo "  fix: git rm --cached <path>   then check .gitignore"
+    fail
+  else
+    ok
+  fi
+fi
+
+# ---------------------------------------------------------------- TIER 2
+
+section "Tier 2 - colcon build + test"
+if ! command -v colcon >/dev/null 2>&1 || [ -z "${ROS_DISTRO:-}" ]; then
+  skip "no sourced ROS 2 environment (source /opt/ros/humble/setup.bash)" "colcon build + test"
+else
+  pushd ros2_ws > /dev/null || exit 1
+  if colcon build --symlink-install; then
+    colcon test
+    colcon test-result --verbose || fail
+  else
+    fail
+  fi
+  popd > /dev/null || true
+fi
+
+# ---------------------------------------------------------------- SUMMARY
+
+echo
+echo "------------------------------------------------------------"
+if [ "${#SKIPS[@]}" -gt 0 ]; then
+  echo "SKIPPED - these were NOT verified, do not treat them as passing:"
+  for s in "${SKIPS[@]}"; do echo "  - $s"; done
+  echo
+fi
+echo "Tier 3 (behaviour on the robot / in Gazebo) is NEVER covered here."
+echo "If the change touched navigation, TF, costmaps, serial, or firmware,"
+echo "report READY FOR HARDWARE TEST - not DONE."
+echo "------------------------------------------------------------"
+
+if [ "$FAILURES" -gt 0 ]; then
+  echo
+  echo "robot/ verification FAILED ($FAILURES check(s) failed)."
+  exit 1
+fi
+
+echo
+if [ -n "${ROS_DISTRO:-}" ]; then
+  echo "robot/ verification passed (tier 1 + tier 2)."
+else
+  echo "robot/ verification passed (tier 1 only - tier 2 was skipped)."
+fi
