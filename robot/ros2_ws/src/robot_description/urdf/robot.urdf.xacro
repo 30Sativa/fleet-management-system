@@ -30,20 +30,41 @@
 
   <!-- ===== base_link (than xe) ===== -->
   <link name="base_link">
-    <!-- Mesh goc tu CAD; scale mm -> m va doi truc CAD -> ROS. -->
-    <visual>
-      <origin xyz="-1.674842 -0.764810 -1.092814" rpy="${cad_to_ros_rpy}"/>
-      <geometry>
-        <mesh filename="package://robot_description/meshes/chassis.stl"
-              scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
-      </geometry>
-      <material name="grey"/>
-    </visual>
+    <!-- Cac mesh duoc export theo toa do assembly, scale mm -> m. -->
+    <xacro:body_visual mesh_file="chassis.stl" material="dark_grey"/>
+    <xacro:body_visual mesh_file="lower_center_1.stl"/>
+    <xacro:body_visual mesh_file="lower_center_2.stl"/>
+    <xacro:body_visual mesh_file="upper_corner_1_6.stl"/>
+    <xacro:body_visual mesh_file="upper_corner_1_7.stl"/>
+    <xacro:body_visual mesh_file="upper_corner_2_1.stl"/>
+    <xacro:body_visual mesh_file="upper_corner_2_2.stl"/>
+    <xacro:body_visual mesh_file="lower_corner_1_1.stl"/>
+    <xacro:body_visual mesh_file="lower_corner_1_2.stl"/>
+    <xacro:body_visual mesh_file="lower_corner_2_1.stl"/>
+    <xacro:body_visual mesh_file="lower_corner_2_2.stl"/>
+    <xacro:body_visual mesh_file="top_cover.stl"/>
+    <xacro:body_visual mesh_file="lower_plate_1_1.stl"/>
+    <xacro:body_visual mesh_file="lower_plate_1_2.stl"/>
+    <xacro:body_visual mesh_file="lower_plate_3_1.stl"/>
+    <xacro:body_visual mesh_file="lower_plate_3_2.stl"/>
+    <xacro:body_visual mesh_file="lower_shell_1.stl"/>
+    <xacro:body_visual mesh_file="lower_shell_2.stl"/>
+    <xacro:body_visual mesh_file="body_shell_1_1.stl"/>
+    <xacro:body_visual mesh_file="body_shell_1_2.stl"/>
+    <xacro:body_visual mesh_file="body_shell_l_middle_1_1.stl"/>
+    <xacro:body_visual mesh_file="body_shell_l_middle_1.stl"/>
+    <xacro:body_visual mesh_file="body_shell_l_1.stl"/>
+    <xacro:body_visual mesh_file="body_shell_l_2.stl"/>
+    <xacro:body_visual mesh_file="body_end_shell_1.stl"/>
+    <xacro:body_visual mesh_file="body_end_shell_2.stl"/>
+    <xacro:body_visual mesh_file="spacer_5.stl"/>
+    <xacro:body_visual mesh_file="spacer_7.stl"/>
 
     <!-- Collision = box don gian (khong dung mesh) de Gazebo/ODE dung va cham
          NHANH. Mesh chi tiet lam physics cham vai phut trong VM. -->
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="${base_collision_x} ${base_collision_y} ${base_collision_z}"
+              rpy="0 0 0"/>
       <geometry>
         <box size="${base_length} ${base_width} ${base_height}"/>
       </geometry>

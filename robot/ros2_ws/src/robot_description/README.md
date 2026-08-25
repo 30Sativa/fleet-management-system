@@ -1,12 +1,12 @@
 # robot_description
 
-Mô tả URDF/Xacro cho AMR differential-drive: **2 bánh chính có motor + 4 bánh phụ**, dùng trực tiếp 7 mesh STL từ CAD.
+Mô tả URDF/Xacro cho AMR differential-drive: **2 bánh chính có motor + 4 bánh phụ**, dùng trực tiếp 35 mesh STL từ CAD.
 
 ## Thông số (sửa trong `urdf/common_properties.xacro`)
 
 | Thông số | Giá trị | Ghi chú |
 |---|---|---|
-| Thân xe (D×R×C) | 0.730 × 0.550 × 0.305 m | đo từ `chassis.stl` |
+| Thân xe (D×R×C) | 0.8054 × 0.5662 × 0.4160 m | bao ngoài 28 body mesh, không tính LiDAR |
 | Bánh chính | ĐK khoảng 0.1945 m, rộng 0.05 m | đo từ `left/right_drive_wheel.stl` |
 | Khoảng cách 2 bánh | 0.4325 m | khoảng cách tâm-tâm trong CAD |
 | Bánh phụ | khoảng 0.169 × 0.171 m, ở 4 vị trí | 4 mesh caster riêng |
@@ -31,8 +31,10 @@ base_footprint
 
 - `urdf/robot.urdf.xacro` — file chính (top-level).
 - `urdf/common_properties.xacro` — **tất cả số đo + macro inertia gom ở đây**.
-- `meshes/*.stl` — 7 mesh đã đổi tên ASCII và đặt trong package.
-- `urdf/wheels.xacro` — macro bánh chính + 4 bánh phụ dùng STL cho visual/collision.
+- `meshes/*.stl` — 35 mesh đã đổi tên ASCII và đặt trong package; 28 body mesh
+  giữ nguyên tọa độ assembly, LiDAR, 2 bánh chính và 4 caster có link riêng.
+- `urdf/wheels.xacro` — macro bánh chính + 4 bánh phụ dùng STL cho visual và
+  primitive đơn giản cho collision.
 - `urdf/sensors.xacro` — LiDAR 2D + IMU + hai SR04T. LiDAR ở giữa nóc xe;
   SONAR1 giữa mặt trước và SONAR2 giữa mặt sau. Đo lại vị trí thật trước
   khi dùng dữ liệu sonar cho tránh vật cản.
@@ -81,11 +83,11 @@ encoder/vòng…) cho đúng driver/board của bạn. Chạy với `use_sim:=fa
 
 ## Quy ước mesh CAD
 
-STL dùng đơn vị mm và trục CAD `X=trái/phải, Y=cao, Z=trước/sau`. Xacro đổi sang ROS `X=trước, Y=trái, Z=cao` bằng `rpy="1.57079632679 0 1.57079632679"` và `scale="0.001 0.001 0.001"`. Các offset tâm mesh được lưu trong `robot.urdf.xacro` để giữ đúng vị trí từ CAD.
+STL dùng đơn vị mm và trục CAD `X=trái/phải, Y=cao, Z=trước/sau`. Xacro đổi sang ROS `X=trước, Y=trái, Z=cao` bằng `rpy="1.57079632679 0 1.57079632679"` và `scale="0.001 0.001 0.001"`. Các body mesh giữ chung tọa độ assembly và dùng `body_mesh_origin`; offset tâm của từng bánh được lưu trong `robot.urdf.xacro`.
 
-Bánh phụ hiện đang là `fixed` để giữ hình dạng và tiếp xúc trong mô phỏng; cơ cấu swivel/quay tự do chưa có đủ mesh và joint để suy ra chỉ từ 7 STL.
+Bánh phụ hiện đang là `fixed` để giữ hình dạng và tiếp xúc trong mô phỏng; bộ CAD chưa mô tả các trục swivel/quay tự do để tách thành joint chính xác.
 
 ## Đã kiểm tra
 
-- Xacro expand OK cả `use_sim:=true` và `false`; URDF sinh ra có 12 link, 11 joint và 14 mesh references.
+- Xacro expand OK cả `use_sim:=true` và `false`; URDF sinh ra có 12 link, 11 joint và 35 mesh references.
 - `wheel_separation` trong YAML (0.4325) và `wheel_radius` (0.09725) khớp Xacro.

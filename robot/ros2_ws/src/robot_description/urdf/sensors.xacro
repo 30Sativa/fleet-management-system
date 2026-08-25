@@ -2,21 +2,27 @@
 <!-- =========================================================================
      sensors.xacro
      LiDAR 2D + IMU + 2 SR04T.
-     Vị trí gắn là ƯỚC LƯỢNG: chỉnh lại theo chỗ bạn lắp cảm biến thật.
+     LiDAR lấy từ CAD; vị trí sonar và IMU vẫn là ƯỚC LƯỢNG.
      ========================================================================= -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ============================ LiDAR 2D ============================ -->
-  <!-- LiDAR gắn giữa nóc xe theo vị trí lắp thực tế. -->
-  <xacro:property name="lidar_radius" value="0.04"/>
-  <xacro:property name="lidar_height" value="0.05"/>
-  <xacro:property name="lidar_x" value="0.0"/>
-  <xacro:property name="lidar_z" value="${base_height/2 + lidar_height/2}"/>
+  <!-- Kich thuoc, tam va mesh origin do truc tiep tu lidar_body.stl. -->
+  <xacro:property name="lidar_radius" value="0.038679688"/>
+  <xacro:property name="lidar_height" value="0.0405"/>
+  <xacro:property name="lidar_x" value="-0.004433431"/>
+  <xacro:property name="lidar_y" value="0.003998868"/>
+  <xacro:property name="lidar_z" value="0.283749721"/>
 
   <link name="lidar_link">
     <visual>
-      <geometry><cylinder radius="${lidar_radius}" length="${lidar_height}"/></geometry>
-      <material name="blue"/>
+      <origin xyz="-1.670408569 -0.768808868 -1.376563721"
+              rpy="${cad_to_ros_rpy}"/>
+      <geometry>
+        <mesh filename="package://robot_description/meshes/lidar_body.stl"
+              scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
+      </geometry>
+      <material name="black"/>
     </visual>
     <collision>
       <geometry><cylinder radius="${lidar_radius}" length="${lidar_height}"/></geometry>
@@ -27,7 +33,7 @@
   <joint name="lidar_joint" type="fixed">
     <parent link="base_link"/>
     <child  link="lidar_link"/>
-    <origin xyz="${lidar_x} 0 ${lidar_z}" rpy="0 0 0"/>
+    <origin xyz="${lidar_x} ${lidar_y} ${lidar_z}" rpy="0 0 0"/>
   </joint>
 
   <gazebo reference="lidar_link">
@@ -98,11 +104,11 @@
 
   <!-- Schematic SONAR1 (PB0/PB1): front centre, facing +X. -->
   <xacro:sr04t_link name="sonar1_link"
-                     x="${base_length/2}" yaw="0" material="green"/>
+                     x="${base_collision_x + base_length/2}" yaw="0" material="green"/>
 
   <!-- Schematic SONAR2 (PB11/PB12): rear centre, facing -X. -->
   <xacro:sr04t_link name="sonar2_link"
-                     x="${-base_length/2}" yaw="3.14159265359" material="yellow"/>
+                     x="${base_collision_x - base_length/2}" yaw="3.14159265359" material="yellow"/>
 
   <!-- ============================== IMU =============================== -->
   <link name="imu_link">
