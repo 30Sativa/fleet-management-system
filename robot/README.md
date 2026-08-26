@@ -162,7 +162,13 @@ secrets into this repository.
 
 ## How miniPC Pulls And Runs The Image
 
-The robot compose file is `docker-compose.yml`.
+The robot compose file is `docker-compose.yml`. A ready-to-copy template is
+at `robot/.env.example` — `.env` itself is git-ignored, never commit it:
+
+```bash
+cp .env.example .env
+nano .env   # fill in your real DOCKER_IMAGE
+```
 
 Example `.env` on the miniPC:
 
