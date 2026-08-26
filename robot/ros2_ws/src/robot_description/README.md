@@ -22,8 +22,10 @@ base_footprint
     ├── left_wheel_link / right_wheel_link   (continuous, có motor)
     ├── 4× *_caster_link                     (fixed, bánh phụ)
     ├── lidar_link                           (giữa nóc xe, fixed)
-    ├── sonar1_link                          (giữa mặt trước, nhìn +X)
-    ├── sonar2_link                          (giữa mặt sau, nhìn -X)
+    ├── sonar1_link                          (góc trước-trái, nhìn chéo +45°)
+    ├── sonar2_link                          (góc trước-phải, nhìn chéo -45°)
+    ├── sonar3_link                          (góc sau-trái, nhìn chéo 135°)
+    ├── sonar4_link                          (góc sau-phải, nhìn chéo -135°)
     └── imu_link                             (fixed)
 ```
 
@@ -35,9 +37,10 @@ base_footprint
   giữ nguyên tọa độ assembly, LiDAR, 2 bánh chính và 4 caster có link riêng.
 - `urdf/wheels.xacro` — macro bánh chính + 4 bánh phụ dùng STL cho visual và
   primitive đơn giản cho collision.
-- `urdf/sensors.xacro` — LiDAR 2D + IMU + hai SR04T. LiDAR ở giữa nóc xe;
-  SONAR1 giữa mặt trước và SONAR2 giữa mặt sau. Đo lại vị trí thật trước
-  khi dùng dữ liệu sonar cho tránh vật cản.
+- `urdf/sensors.xacro` — LiDAR 2D + IMU + bốn SR04T. LiDAR ở giữa nóc xe;
+  4 sonar đặt ở 4 góc vuông của khung xe (SONAR1 trước-trái, SONAR2
+  trước-phải, SONAR3 sau-trái, SONAR4 sau-phải), mỗi con nhìn chéo ra góc.
+  Đo lại vị trí thật trước khi dùng dữ liệu sonar cho tránh vật cản.
 - `urdf/ros2_control.xacro` — hardware interface (sim ⇄ hardware thật qua `use_sim`).
 - `config/diff_drive_controller.yaml` — controller (wheel_separation/radius **phải khớp** URDF).
 - `urdf/robot_expanded_sim.urdf` / `robot_expanded_hw.urdf` — URDF đã expand sẵn để tham khảo.

@@ -109,7 +109,7 @@
   <joint name="sonar1_link_joint" type="fixed">
     <parent link="base_link"/>
     <child link="sonar1_link"/>
-    <origin rpy="0 0 0" xyz="0.4013235275 0 0.0"/>
+    <origin rpy="0 0 0.78539816340" xyz="0.4013235275 0.284999692 0.0"/>
   </joint>
   <link name="sonar2_link">
     <visual>
@@ -124,7 +124,37 @@
   <joint name="sonar2_link_joint" type="fixed">
     <parent link="base_link"/>
     <child link="sonar2_link"/>
-    <origin rpy="0 0 3.14159265359" xyz="-0.4040990795 0 0.0"/>
+    <origin rpy="0 0 -0.78539816340" xyz="0.4013235275 -0.281226626 0.0"/>
+  </joint>
+  <link name="sonar3_link">
+    <visual>
+      <!-- Link origin is the acoustic face; body extends into the chassis. -->
+      <origin rpy="0 0 0" xyz="-0.0125 0 0"/>
+      <geometry>
+        <box size="0.025 0.045 0.025"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+  </link>
+  <joint name="sonar3_link_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="sonar3_link"/>
+    <origin rpy="0 0 2.35619449019" xyz="-0.4040990795 0.284999692 0.0"/>
+  </joint>
+  <link name="sonar4_link">
+    <visual>
+      <!-- Link origin is the acoustic face; body extends into the chassis. -->
+      <origin rpy="0 0 0" xyz="-0.0125 0 0"/>
+      <geometry>
+        <box size="0.025 0.045 0.025"/>
+      </geometry>
+      <material name="orange"/>
+    </visual>
+  </link>
+  <joint name="sonar4_link_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="sonar4_link"/>
+    <origin rpy="0 0 -2.35619449019" xyz="-0.4040990795 -0.281226626 0.0"/>
   </joint>
   <!-- ============================== IMU =============================== -->
   <link name="imu_link">

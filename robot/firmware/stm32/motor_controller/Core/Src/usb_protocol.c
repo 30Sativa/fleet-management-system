@@ -328,22 +328,29 @@ static uint8_t Protocol_TrySendFeedback(uint32_t now_ms)
 	uint32_t dt_ms = now_ms - last_feedback_sent_ms;
 	uint16_t sonar1_mm = 0U;
 	uint16_t sonar2_mm = 0U;
+	uint16_t sonar3_mm = 0U;
+	uint16_t sonar4_mm = 0U;
 	uint8_t sonar1_valid = 0U;
 	uint8_t sonar2_valid = 0U;
+	uint8_t sonar3_valid = 0U;
+	uint8_t sonar4_valid = 0U;
 
 	/* Yaw tu IMU (cache). Gui dang centi-do (yaw*100) kieu integer de tranh
 	 * phu thuoc %f. yaw_valid=1 neu IMU da co du lieu.
-	 * Format moi (tuong thich nguoc, them yaw va 2 SR04T):
+	 * Format moi (tuong thich nguoc, them yaw va 4 SR04T):
 	 *   FB,<seq>,<left>,<right>,<dt_ms>,<status>,<yaw_cdeg>,<yaw_valid>,
-	 *      <sonar1_mm>,<sonar1_valid>,<sonar2_mm>,<sonar2_valid> */
+	 *      <sonar1_mm>,<sonar1_valid>,<sonar2_mm>,<sonar2_valid>,
+	 *      <sonar3_mm>,<sonar3_valid>,<sonar4_mm>,<sonar4_valid> */
 	uint8_t yaw_valid = 0U;
 	float   yaw_deg   = BNO08x_GetLastYaw(&yaw_valid);
 	long    yaw_cdeg  = (long)(yaw_deg * 100.0f);
 	SR04T_GetReading(0U, &sonar1_mm, &sonar1_valid);
 	SR04T_GetReading(1U, &sonar2_mm, &sonar2_valid);
+	SR04T_GetReading(2U, &sonar3_mm, &sonar3_valid);
+	SR04T_GetReading(3U, &sonar4_mm, &sonar4_valid);
 
 	return Protocol_TrySendFormatted(
-		"FB,%lu,%ld,%ld,%lu,%s,%ld,%u,%u,%u,%u,%u\r\n",
+		"FB,%lu,%ld,%ld,%lu,%s,%ld,%u,%u,%u,%u,%u,%u,%u,%u,%u\r\n",
 		(unsigned long)last_seq,
 		(long)Motor_GetLeftCount(),
 		(long)Motor_GetRightCount(),
@@ -354,7 +361,11 @@ static uint8_t Protocol_TrySendFeedback(uint32_t now_ms)
 		(unsigned)sonar1_mm,
 		(unsigned)sonar1_valid,
 		(unsigned)sonar2_mm,
-		(unsigned)sonar2_valid);
+		(unsigned)sonar2_valid,
+		(unsigned)sonar3_mm,
+		(unsigned)sonar3_valid,
+		(unsigned)sonar4_mm,
+		(unsigned)sonar4_valid);
 }
 
 static uint8_t Protocol_TrySendRaw(const char *text)

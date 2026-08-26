@@ -33,8 +33,12 @@ def generate_launch_description():
     publish_sonar = LaunchConfiguration('publish_sonar')
     sonar1_topic = LaunchConfiguration('sonar1_topic')
     sonar2_topic = LaunchConfiguration('sonar2_topic')
+    sonar3_topic = LaunchConfiguration('sonar3_topic')
+    sonar4_topic = LaunchConfiguration('sonar4_topic')
     sonar1_frame = LaunchConfiguration('sonar1_frame')
     sonar2_frame = LaunchConfiguration('sonar2_frame')
+    sonar3_frame = LaunchConfiguration('sonar3_frame')
+    sonar4_frame = LaunchConfiguration('sonar4_frame')
     sonar_min_range = LaunchConfiguration('sonar_min_range')
     sonar_max_range = LaunchConfiguration('sonar_max_range')
     sonar_field_of_view = LaunchConfiguration('sonar_field_of_view')
@@ -132,7 +136,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'publish_sonar',
             default_value='true',
-            description='Publish the two SR04T readings as sensor_msgs/Range.'),
+            description='Publish the four SR04T readings as sensor_msgs/Range.'),
         DeclareLaunchArgument(
             'sonar1_topic',
             default_value='/ultrasonic/sonar1/range',
@@ -142,6 +146,14 @@ def generate_launch_description():
             default_value='/ultrasonic/sonar2/range',
             description='SONAR2 Range topic.'),
         DeclareLaunchArgument(
+            'sonar3_topic',
+            default_value='/ultrasonic/sonar3/range',
+            description='SONAR3 Range topic.'),
+        DeclareLaunchArgument(
+            'sonar4_topic',
+            default_value='/ultrasonic/sonar4/range',
+            description='SONAR4 Range topic.'),
+        DeclareLaunchArgument(
             'sonar1_frame',
             default_value='sonar1_link',
             description='SONAR1 Range frame id; temporary front TF is in robot_description.'),
@@ -149,6 +161,14 @@ def generate_launch_description():
             'sonar2_frame',
             default_value='sonar2_link',
             description='SONAR2 Range frame id; temporary rear TF is in robot_description.'),
+        DeclareLaunchArgument(
+            'sonar3_frame',
+            default_value='sonar3_link',
+            description='SONAR3 Range frame id; add its TF in robot_description if used for obstacle avoidance.'),
+        DeclareLaunchArgument(
+            'sonar4_frame',
+            default_value='sonar4_link',
+            description='SONAR4 Range frame id; add its TF in robot_description if used for obstacle avoidance.'),
         DeclareLaunchArgument(
             'sonar_min_range',
             default_value='0.20',
@@ -220,8 +240,12 @@ def generate_launch_description():
                     publish_sonar, value_type=bool),
                 'sonar1_topic': sonar1_topic,
                 'sonar2_topic': sonar2_topic,
+                'sonar3_topic': sonar3_topic,
+                'sonar4_topic': sonar4_topic,
                 'sonar1_frame': sonar1_frame,
                 'sonar2_frame': sonar2_frame,
+                'sonar3_frame': sonar3_frame,
+                'sonar4_frame': sonar4_frame,
                 'sonar_min_range': ParameterValue(
                     sonar_min_range, value_type=float),
                 'sonar_max_range': ParameterValue(

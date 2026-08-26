@@ -32,6 +32,8 @@ subscribes only to `/cmd_vel`.
 | `/odom` | `nav_msgs/msg/Odometry` | STM32 step-count odometry |
 | `/ultrasonic/sonar1/range` | `sensor_msgs/msg/Range` | SR04T SONAR1 |
 | `/ultrasonic/sonar2/range` | `sensor_msgs/msg/Range` | SR04T SONAR2 |
+| `/ultrasonic/sonar3/range` | `sensor_msgs/msg/Range` | SR04T SONAR3 |
+| `/ultrasonic/sonar4/range` | `sensor_msgs/msg/Range` | SR04T SONAR4 |
 | `/map` | `nav_msgs/msg/OccupancyGrid` | SLAM map |
 
 ## TF Frames
@@ -144,25 +146,30 @@ vertical for forward/backward, and left stick horizontal for rotation. Verify
 the actual device first with `ls -l /dev/input/js*` and `ros2 topic echo
 /joy --once`; VMware must pass the controller through to the Ubuntu guest.
 
-The two SR04T sensors are carried in the STM32 feedback and exposed by the
-bridge as `/ultrasonic/sonar1/range` and `/ultrasonic/sonar2/range`
+The four SR04T sensors are carried in the STM32 feedback and exposed by the
+bridge as `/ultrasonic/sonar1/range` through `/ultrasonic/sonar4/range`
 (`sensor_msgs/msg/Range`). Check them while mapping:
 
 ```bash
 ros2 topic echo /ultrasonic/sonar1/range
 ros2 topic echo /ultrasonic/sonar2/range
+ros2 topic echo /ultrasonic/sonar3/range
+ros2 topic echo /ultrasonic/sonar4/range
 ```
 
-The schematic mapping is `SONAR1: PB0=TRIG, PB1=ECHO` and
-`SONAR2: PB11=TRIG, PB12=ECHO`; connector pin 2 is TRIG and pin 3 is ECHO.
-The temporary URDF places SONAR1 at the front centre facing forward and
-SONAR2 at the rear centre facing backward. LiDAR is at the centre of the
-roof, matching the current physical mount.
+The schematic mapping is `SONAR1: PB0=TRIG, PB1=ECHO`,
+`SONAR2: PB11=TRIG, PB12=ECHO`, `SONAR3: PB13=TRIG, PB14=ECHO`, and
+`SONAR4: PB15=TRIG, PA6=ECHO` (SONAR4's ECHO is the only one on GPIOA);
+connector pin 2 is TRIG and pin 3 is ECHO (SONAR4's TRIG is on connector
+pin 1). The temporary URDF places all four sensors at the four corners of
+the chassis (SONAR1 front-left, SONAR2 front-right, SONAR3 rear-left,
+SONAR4 rear-right), each facing diagonally outward. LiDAR is at the centre
+of the roof, matching the current physical mount.
 Confirm the SR04T Echo electrical level before powering it: the schematic
-shows a direct connection to PB1/PB12, while some SR04T modules output 5 V.
-Use a divider or level shifter if the installed module does not guarantee a
-3.3 V Echo signal. These ranges are for hardware testing only and are not fed
-into `slam_toolbox` yet.
+shows a direct connection to PB1/PB12/PB14/PA6, while some SR04T modules
+output 5 V. Use a divider or level shifter if the installed module does not
+guarantee a 3.3 V Echo signal. These ranges are for hardware testing only
+and are not fed into `slam_toolbox` yet.
 
 ## Auto Explore
 

@@ -3,11 +3,13 @@
 
 #include <stdint.h>
 
-/* Two SR04T connectors from the schematic:
- *   SONAR1: PB0 = TRIG, PB1 = ECHO
+/* Four SR04T connectors from the schematic:
+ *   SONAR1: PB0  = TRIG, PB1  = ECHO
  *   SONAR2: PB11 = TRIG, PB12 = ECHO
+ *   SONAR3: PB13 = TRIG, PB14 = ECHO
+ *   SONAR4: PB15 = TRIG, PA6  = ECHO
  */
-#define SR04T_SENSOR_COUNT 2U
+#define SR04T_SENSOR_COUNT 4U
 
 void SR04T_Init(void);
 void SR04T_Update(void);

@@ -50,16 +50,19 @@ The current firmware sends feedback in this format:
 
 ```text
 FB,<seq>,<left_count>,<right_count>,<dt_ms>,<status>\r\n
-With IMU and the two SR04T sensors enabled, the firmware appends these fields:
+```
+
+With IMU and the four SR04T sensors enabled, the firmware appends these fields:
 
 ```text
-FB,<seq>,<left_count>,<right_count>,<dt_ms>,<status>,<yaw_cdeg>,<yaw_valid>,<sonar1_mm>,<sonar1_valid>,<sonar2_mm>,<sonar2_valid>\r\n
+FB,<seq>,<left_count>,<right_count>,<dt_ms>,<status>,<yaw_cdeg>,<yaw_valid>,<sonar1_mm>,<sonar1_valid>,<sonar2_mm>,<sonar2_valid>,<sonar3_mm>,<sonar3_valid>,<sonar4_mm>,<sonar4_valid>\r\n
 ```
 
 `sonar*_valid=0` means no valid echo was received; the bridge publishes NaN for
-that `sensor_msgs/msg/Range` sample. The schematic mapping is `SONAR1 PB0/PB1`
-and `SONAR2 PB11/PB12`, with connector pin 2 as TRIG and pin 3 as ECHO.
-```
+that `sensor_msgs/msg/Range` sample. The schematic mapping is `SONAR1 PB0/PB1`,
+`SONAR2 PB11/PB12`, `SONAR3 PB13/PB14`, and `SONAR4 PB15/PA6` (echo on GPIOA
+for SONAR4 only), with connector pin 2 as TRIG and pin 3 as ECHO (SONAR4's
+TRIG is on connector pin 1 per the schematic).
 
 Example:
 
@@ -104,6 +107,8 @@ It publishes:
 | `/odom` | `nav_msgs/msg/Odometry` |
 | `/ultrasonic/sonar1/range` | `sensor_msgs/msg/Range` |
 | `/ultrasonic/sonar2/range` | `sensor_msgs/msg/Range` |
+| `/ultrasonic/sonar3/range` | `sensor_msgs/msg/Range` |
+| `/ultrasonic/sonar4/range` | `sensor_msgs/msg/Range` |
 
 It broadcasts:
 

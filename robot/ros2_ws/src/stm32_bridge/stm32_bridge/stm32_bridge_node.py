@@ -75,8 +75,12 @@ class Stm32BridgeNode(Node):
         self.declare_parameter('publish_sonar', True)
         self.declare_parameter('sonar1_topic', '/ultrasonic/sonar1/range')
         self.declare_parameter('sonar2_topic', '/ultrasonic/sonar2/range')
+        self.declare_parameter('sonar3_topic', '/ultrasonic/sonar3/range')
+        self.declare_parameter('sonar4_topic', '/ultrasonic/sonar4/range')
         self.declare_parameter('sonar1_frame', 'sonar1_link')
         self.declare_parameter('sonar2_frame', 'sonar2_link')
+        self.declare_parameter('sonar3_frame', 'sonar3_link')
+        self.declare_parameter('sonar4_frame', 'sonar4_link')
         self.declare_parameter('sonar_min_range', 0.20)
         self.declare_parameter('sonar_max_range', 6.0)
         self.declare_parameter('sonar_field_of_view', 0.52)
@@ -124,8 +128,12 @@ class Stm32BridgeNode(Node):
         self.publish_sonar = bool(self.get_parameter('publish_sonar').value)
         self.sonar1_topic = str(self.get_parameter('sonar1_topic').value)
         self.sonar2_topic = str(self.get_parameter('sonar2_topic').value)
+        self.sonar3_topic = str(self.get_parameter('sonar3_topic').value)
+        self.sonar4_topic = str(self.get_parameter('sonar4_topic').value)
         self.sonar1_frame = str(self.get_parameter('sonar1_frame').value)
         self.sonar2_frame = str(self.get_parameter('sonar2_frame').value)
+        self.sonar3_frame = str(self.get_parameter('sonar3_frame').value)
+        self.sonar4_frame = str(self.get_parameter('sonar4_frame').value)
         self.sonar_min_range = float(
             self.get_parameter('sonar_min_range').value)
         self.sonar_max_range = float(
@@ -231,6 +239,8 @@ class Stm32BridgeNode(Node):
         self._tf_broadcaster = None
         self._sonar1_pub = None
         self._sonar2_pub = None
+        self._sonar3_pub = None
+        self._sonar4_pub = None
         if self.publish_odom:
             self._odom_pub = self.create_publisher(Odometry, '/odom', 10)
         if self.publish_tf:
@@ -238,6 +248,8 @@ class Stm32BridgeNode(Node):
         if self.publish_sonar:
             self._sonar1_pub = self.create_publisher(Range, self.sonar1_topic, 10)
             self._sonar2_pub = self.create_publisher(Range, self.sonar2_topic, 10)
+            self._sonar3_pub = self.create_publisher(Range, self.sonar3_topic, 10)
+            self._sonar4_pub = self.create_publisher(Range, self.sonar4_topic, 10)
 
         self.get_logger().info(
             'Starting STM32 bridge: '
@@ -256,7 +268,8 @@ class Stm32BridgeNode(Node):
             f'publish_odom={self.publish_odom}, publish_tf={self.publish_tf}, '
             f'odom_frame={self.odom_frame}, base_frame={self.base_frame}, '
             f'publish_sonar={self.publish_sonar}, '
-            f'sonar_topics=({self.sonar1_topic},{self.sonar2_topic}), '
+            f'sonar_topics=({self.sonar1_topic},{self.sonar2_topic},'
+            f'{self.sonar3_topic},{self.sonar4_topic}), '
             'command_format=CMD/STOP mm/s, feedback_format=FB seq/count/dt/status')
 
         self._open_serial()
@@ -460,7 +473,7 @@ class Stm32BridgeNode(Node):
             return
 
         (seq, left_count, right_count, dt_ms, status, yaw_rad,
-         sonar1, sonar2) = parsed
+         sonar1, sonar2, sonar3, sonar4) = parsed
 
         self._update_imu_heading(yaw_rad)
         now_mono = time.monotonic()
@@ -473,6 +486,12 @@ class Stm32BridgeNode(Node):
         if sonar2 is not None:
             self._publish_sonar_range(
                 self._sonar2_pub, self.sonar2_frame, sonar2, now_ros)
+        if sonar3 is not None:
+            self._publish_sonar_range(
+                self._sonar3_pub, self.sonar3_frame, sonar3, now_ros)
+        if sonar4 is not None:
+            self._publish_sonar_range(
+                self._sonar4_pub, self.sonar4_frame, sonar4, now_ros)
 
         self._last_feedback_mono = now_mono
         self._last_feedback_seq = seq
@@ -539,9 +558,26 @@ class Stm32BridgeNode(Node):
         yaw_rad: Optional[float] = None
         sonar1 = None
         sonar2 = None
+        sonar3 = None
+        sonar4 = None
         try:
-            # New format appends mm/valid pairs for SONAR1 and SONAR2.
-            if len(parts) == 12:
+            # Current format appends mm/valid pairs for SONAR1-4.
+            if len(parts) == 16:
+                seq = int(parts[1])
+                left_count = int(parts[2])
+                right_count = int(parts[3])
+                dt_ms = float(parts[4])
+                status = parts[5].upper()
+                yaw_cdeg = int(parts[6])
+                yaw_valid = int(parts[7])
+                if yaw_valid != 0:
+                    yaw_rad = math.radians(yaw_cdeg / 100.0)
+                sonar1 = (int(parts[8]), int(parts[9]) != 0)
+                sonar2 = (int(parts[10]), int(parts[11]) != 0)
+                sonar3 = (int(parts[12]), int(parts[13]) != 0)
+                sonar4 = (int(parts[14]), int(parts[15]) != 0)
+            # Older format: mm/valid pairs for SONAR1 and SONAR2 only.
+            elif len(parts) == 12:
                 seq = int(parts[1])
                 left_count = int(parts[2])
                 right_count = int(parts[3])
@@ -578,7 +614,7 @@ class Stm32BridgeNode(Node):
                 status = parts[4].upper()
             else:
                 raise ValueError(
-                    f'expected 5, 6, 8 or 12 CSV fields, got {len(parts)}')
+                    f'expected 5, 6, 8, 12 or 16 CSV fields, got {len(parts)}')
         except ValueError as exc:
             self.get_logger().warn(
                 f'Failed to parse STM32 feedback "{line}": {exc}')
@@ -586,7 +622,7 @@ class Stm32BridgeNode(Node):
 
         parsed = seq, left_count, right_count, dt_ms, status, yaw_rad
         if include_sonar:
-            return parsed + (sonar1, sonar2)
+            return parsed + (sonar1, sonar2, sonar3, sonar4)
         return parsed
 
     def _compute_count_delta(

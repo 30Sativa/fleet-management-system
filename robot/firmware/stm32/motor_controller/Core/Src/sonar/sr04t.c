@@ -37,24 +37,47 @@ static void SR04T_DelayUs(uint32_t delay_us)
 
 static GPIO_TypeDef *SR04T_TrigPort(uint8_t sensor_index)
 {
+	/* All four TRIG pins (SONAR1-4) are on GPIOB. */
 	(void)sensor_index;
 	return GPIOB;
 }
 
 static uint16_t SR04T_TrigPin(uint8_t sensor_index)
 {
-	return (sensor_index == 0U) ? PB0_SONAR1_TRIG_Pin : PB11_SONAR2_TRIG_Pin;
+	switch (sensor_index)
+	{
+	case 0U:
+		return PB0_SONAR1_TRIG_Pin;
+	case 1U:
+		return PB11_SONAR2_TRIG_Pin;
+	case 2U:
+		return PB13_SONAR3_TRIG_Pin;
+	case 3U:
+	default:
+		return PB15_SONAR4_TRIG_Pin;
+	}
 }
 
 static GPIO_TypeDef *SR04T_EchoPort(uint8_t sensor_index)
 {
-	(void)sensor_index;
-	return GPIOB;
+	/* SONAR1-3 ECHO are on GPIOB; SONAR4 ECHO (PA6) is on GPIOA. */
+	return (sensor_index == 3U) ? GPIOA : GPIOB;
 }
 
 static uint16_t SR04T_EchoPin(uint8_t sensor_index)
 {
-	return (sensor_index == 0U) ? PB1_SONAR1_ECHO_Pin : PB12_SONAR2_ECHO_Pin;
+	switch (sensor_index)
+	{
+	case 0U:
+		return PB1_SONAR1_ECHO_Pin;
+	case 1U:
+		return PB12_SONAR2_ECHO_Pin;
+	case 2U:
+		return PB14_SONAR3_ECHO_Pin;
+	case 3U:
+	default:
+		return PA6_SONAR4_ECHO_Pin;
+	}
 }
 
 static void SR04T_FinishMeasurement(uint8_t sensor_index, uint8_t valid,
@@ -95,7 +118,8 @@ void SR04T_Init(void)
 	next_trigger_ms = HAL_GetTick() + 100U;
 
 	HAL_GPIO_WritePin(GPIOB,
-					 PB0_SONAR1_TRIG_Pin | PB11_SONAR2_TRIG_Pin,
+					 PB0_SONAR1_TRIG_Pin | PB11_SONAR2_TRIG_Pin |
+					 PB13_SONAR3_TRIG_Pin | PB15_SONAR4_TRIG_Pin,
 					 GPIO_PIN_RESET);
 }
 
@@ -121,7 +145,7 @@ void SR04T_Update(void)
 	}
 
 	sensor_index = next_sensor;
-	next_sensor ^= 1U;
+	next_sensor = (uint8_t)((next_sensor + 1U) % SR04T_SENSOR_COUNT);
 	active_sensor = sensor_index;
 	waiting_for_falling = 0U;
 	measurement_start_ms = now_ms;
@@ -152,6 +176,14 @@ void SR04T_OnGpioExti(uint16_t gpio_pin)
 	else if (gpio_pin == PB12_SONAR2_ECHO_Pin)
 	{
 		sensor_index = 1U;
+	}
+	else if (gpio_pin == PB14_SONAR3_ECHO_Pin)
+	{
+		sensor_index = 2U;
+	}
+	else if (gpio_pin == PA6_SONAR4_ECHO_Pin)
+	{
+		sensor_index = 3U;
 	}
 	else
 	{
@@ -207,7 +239,7 @@ void SR04T_GetReading(uint8_t sensor_index, uint16_t *distance_mm,
 	__enable_irq();
 }
 
-/* HAL calls this weak callback after EXTI1/EXTI15_10_IRQHandler dispatch. */
+/* HAL calls this weak callback after EXTI1/EXTI9_5/EXTI15_10_IRQHandler dispatch. */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	SR04T_OnGpioExti(GPIO_Pin);

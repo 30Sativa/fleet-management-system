@@ -224,17 +224,19 @@ nó quan trọng nhất**.
 Đây là hệ quả trực tiếp của `clearing: true` ở mục 6 — không phải bug, mà là cái
 giá đã biết. Ba cách xử lý:
 
-**a) Dùng 2 con sonar bạn đã có.** `stm32_bridge` đang publish
-`/ultrasonic/sonar1/range` và `sonar2` dạng `sensor_msgs/Range`, và **hiện không
-node nào subscribe**. Nav2 có sẵn `RangeSensorLayer` ăn đúng kiểu message đó, và
-sonar nhìn thấy vật thấp ở đúng dải 0.2–0.85 m mà cả hai cảm biến kia mù:
+**a) Dùng 4 con sonar bạn đã có.** `stm32_bridge` đang publish
+`/ultrasonic/sonar1/range` .. `sonar4` dạng `sensor_msgs/Range` (4 góc vuông
+của khung xe), và **hiện không node nào subscribe**. Nav2 có sẵn
+`RangeSensorLayer` ăn đúng kiểu message đó, và sonar nhìn thấy vật thấp ở đúng
+dải 0.2–0.85 m mà cả hai cảm biến kia mù:
 
 ```yaml
       plugins: ["obstacle_layer", "sonar_layer", "inflation_layer"]
       sonar_layer:
         plugin: "nav2_costmap_2d::RangeSensorLayer"
         enabled: true
-        topics: ["/ultrasonic/sonar1/range", "/ultrasonic/sonar2/range"]
+        topics: ["/ultrasonic/sonar1/range", "/ultrasonic/sonar2/range",
+                  "/ultrasonic/sonar3/range", "/ultrasonic/sonar4/range"]
         input_sensor_type: "ALL"
         clear_on_max_reading: true   # het tam = trong, neu khong vet se dinh mai
         no_readings_timeout: 2.0

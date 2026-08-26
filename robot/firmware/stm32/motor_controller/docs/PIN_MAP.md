@@ -24,6 +24,10 @@ và sơ đồ dây thực tế.
 | PB1 | SR04T SONAR1 ECHO | J_SONAR1 pin 3, EXTI1 input |
 | PB11 | SR04T SONAR2 TRIG | J_SONAR2 pin 2, GPIO output |
 | PB12 | SR04T SONAR2 ECHO | J_SONAR2 pin 3, EXTI15_10 input |
+| PB13 | SR04T SONAR3 TRIG | J_SONAR3 pin 2, GPIO output |
+| PB14 | SR04T SONAR3 ECHO | J_SONAR3 pin 3, EXTI15_10 input |
+| PB15 | SR04T SONAR4 TRIG | J_SONAR4 pin 1, GPIO output |
+| PA6 | SR04T SONAR4 ECHO | J_SONAR4 pin 3, EXTI9_5 input |
 
 ## ST-LINK / SWD
 
@@ -62,14 +66,16 @@ bit-bang, có hỗ trợ chờ clock stretching của BNO08x (timeout 25 ms).
 | PB8/PB9 | Chưa dùng. Không được ghi là I2C1 trong tài liệu hiện tại. Có thể dành cho CAN sau khi cấu hình CubeMX và driver CAN. |
 | I2C1/I2C2/I2C3 | Chưa có peripheral nào được khởi tạo trong `main.c`; các giá trị clock I2C còn lại trong `.ioc` không có nghĩa là I2C đang chạy. |
 | CAN/FDCAN | Chưa có cấu hình và driver trong firmware hiện tại. |
-| PA6, PA7, PA8, PA9, PA10, PA15, PB2–PB5, PB8–PB10, PC4, PC6, PC10–PC15, PF0–PF1 | Đang để dành; phải kiểm tra alternate function trong CubeMX trước khi dùng. |
+| PA7, PA8, PA9, PA10, PA15, PB2–PB5, PB8–PB10, PC4, PC6, PC10–PC15, PF0–PF1 | Đang để dành; phải kiểm tra alternate function trong CubeMX trước khi dùng. |
 
 ## Lưu ý phần cứng
 
 - BNO08x dùng bus I2C open-drain; cần pull-up phù hợp lên 3.3V.
 - Không nối PB6/PB7 đồng thời vào một peripheral I2C khác nếu chưa kiểm tra địa
   chỉ và tải bus.
-- Echo của SR04T có thể là 5V. Sơ đồ hiện tại nối trực tiếp vào PB1/PB12, nên phải xác nhận module đang chạy mức echo 3.3V hoặc thêm chia áp/level shifter trước khi cấp nguồn và flash firmware.
+- Echo của SR04T có thể là 5V. Sơ đồ hiện tại nối trực tiếp vào PB1/PB12/PB14/PA6, nên phải xác nhận module đang chạy mức echo 3.3V hoặc thêm chia áp/level shifter trước khi cấp nguồn và flash firmware.
+- SONAR3 (PB13/PB14) và SONAR2 (PB11/PB12) dùng chung `EXTI15_10_IRQHandler` (khác EXTI line thật: line 12 và line 14, chỉ chung vector ngắt theo nhóm). SONAR4 ECHO (PA6) dùng `EXTI9_5_IRQHandler` riêng (EXTI line 6). Không có xung đột line vì PB1(1), PB12(12), PB14(14), PA6(6) là 4 line EXTI khác nhau.
+- SONAR4 TRIG dùng PB15 nhưng ECHO dùng PA6 (khác port A/B) — do đó `SR04T_EchoPort()` trong `sr04t.c` phải trả về đúng `GPIOA` cho sensor_index 3, các sensor còn lại vẫn `GPIOB`.
 - 74HCT245 phải cấp 5V nếu dùng để nâng mức tín hiệu STEP/DIR; `OE#` phải được
   kéo đúng mức để output hoạt động.
 - PB8/PB9 không được tự nhận là CAN chỉ vì tài liệu cũ từng đề xuất như vậy.

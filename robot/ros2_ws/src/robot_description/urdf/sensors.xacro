@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!-- =========================================================================
      sensors.xacro
-     LiDAR 2D + IMU + 2 SR04T.
+     LiDAR 2D + IMU + 4 SR04T.
      LiDAR lấy từ CAD; vị trí sonar và IMU vẫn là ƯỚC LƯỢNG.
      ========================================================================= -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
@@ -74,16 +74,17 @@
     </sensor>
   </gazebo>
 
-  <!-- =========================== SR04T pair =========================== -->
-  <!-- Range frames point along local +X. SONAR1 looks forward; SONAR2 is
-       rotated pi radians to look backward. Positions are temporary until
-       measured on the finished chassis. -->
+  <!-- =========================== SR04T x4 =========================== -->
+  <!-- Range frames point along local +X. All four SR04T sit at the four
+       corners of the chassis, each facing diagonally outward (yaw = +-45 deg
+       from the corner's bisector). Positions are temporary until measured
+       on the finished chassis. -->
   <xacro:property name="sonar_body_depth" value="0.025"/>
   <xacro:property name="sonar_body_width" value="0.045"/>
   <xacro:property name="sonar_body_height" value="0.025"/>
   <xacro:property name="sonar_mount_z" value="0.0"/>
 
-  <xacro:macro name="sr04t_link" params="name x yaw material">
+  <xacro:macro name="sr04t_link" params="name x y yaw material">
     <link name="${name}">
       <visual>
         <!-- Link origin is the acoustic face; body extends into the chassis. -->
@@ -98,17 +99,37 @@
     <joint name="${name}_joint" type="fixed">
       <parent link="base_link"/>
       <child link="${name}"/>
-      <origin xyz="${x} 0 ${sonar_mount_z}" rpy="0 0 ${yaw}"/>
+      <origin xyz="${x} ${y} ${sonar_mount_z}" rpy="0 0 ${yaw}"/>
     </joint>
   </xacro:macro>
 
-  <!-- Schematic SONAR1 (PB0/PB1): front centre, facing +X. -->
+  <!-- Schematic SONAR1 (PB0/PB1): front-left corner, facing +45 deg (out
+       to front-left diagonal). -->
   <xacro:sr04t_link name="sonar1_link"
-                     x="${base_collision_x + base_length/2}" yaw="0" material="green"/>
+                     x="${base_collision_x + base_length/2}"
+                     y="${base_collision_y + base_width/2}"
+                     yaw="0.78539816340" material="green"/>
 
-  <!-- Schematic SONAR2 (PB11/PB12): rear centre, facing -X. -->
+  <!-- Schematic SONAR2 (PB11/PB12): front-right corner, facing -45 deg (out
+       to front-right diagonal). -->
   <xacro:sr04t_link name="sonar2_link"
-                     x="${base_collision_x - base_length/2}" yaw="3.14159265359" material="yellow"/>
+                     x="${base_collision_x + base_length/2}"
+                     y="${base_collision_y - base_width/2}"
+                     yaw="-0.78539816340" material="yellow"/>
+
+  <!-- Schematic SONAR3 (PB13/PB14): rear-left corner, facing 135 deg (out
+       to rear-left diagonal). -->
+  <xacro:sr04t_link name="sonar3_link"
+                     x="${base_collision_x - base_length/2}"
+                     y="${base_collision_y + base_width/2}"
+                     yaw="2.35619449019" material="blue"/>
+
+  <!-- Schematic SONAR4 (PB15/PA6): rear-right corner, facing -135 deg (out
+       to rear-right diagonal). -->
+  <xacro:sr04t_link name="sonar4_link"
+                     x="${base_collision_x - base_length/2}"
+                     y="${base_collision_y - base_width/2}"
+                     yaw="-2.35619449019" material="orange"/>
 
   <!-- ============================== IMU =============================== -->
   <link name="imu_link">

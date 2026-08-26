@@ -139,7 +139,7 @@ local_costmap:
           # camera stops publishing.
           expected_update_rate: 0.0
           inf_is_valid: false
-      # NOT configured, on purpose: a RangeSensorLayer for the two SR04T
+      # NOT configured, on purpose: a RangeSensorLayer for the four SR04T
       # sonars that stm32_bridge already publishes and nothing subscribes to.
       # They see the one thing both other sensors miss - a LOW obstacle CLOSER
       # than 0.85 m, where the Astra has gone blind and the LiDAR raytraces

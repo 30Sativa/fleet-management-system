@@ -254,7 +254,8 @@ def test_parse_feedback_twelve_field_with_two_sonars():
         include_sonar=True,
     )
     assert parsed is not None
-    seq, left, right, dt_ms, status, yaw_rad, sonar1, sonar2 = parsed
+    (seq, left, right, dt_ms, status, yaw_rad,
+     sonar1, sonar2, sonar3, sonar4) = parsed
     assert seq == 8
     assert left == 100
     assert right == 110
@@ -263,6 +264,29 @@ def test_parse_feedback_twelve_field_with_two_sonars():
     approx(yaw_rad, math.pi / 2, tol=1e-6)
     assert sonar1 == (1234, True)
     assert sonar2 == (0, False)
+    assert sonar3 is None
+    assert sonar4 is None
+
+
+def test_parse_feedback_sixteen_field_with_four_sonars():
+    parsed = Stm32BridgeNode._parse_feedback_line(
+        Stm32BridgeNode,
+        'FB,9,100,110,20,OK,9000,1,1234,1,0,0,2000,1,500,0',
+        include_sonar=True,
+    )
+    assert parsed is not None
+    (seq, left, right, dt_ms, status, yaw_rad,
+     sonar1, sonar2, sonar3, sonar4) = parsed
+    assert seq == 9
+    assert left == 100
+    assert right == 110
+    approx(dt_ms, 20.0)
+    assert status == 'OK'
+    approx(yaw_rad, math.pi / 2, tol=1e-6)
+    assert sonar1 == (1234, True)
+    assert sonar2 == (0, False)
+    assert sonar3 == (2000, True)
+    assert sonar4 == (500, False)
 
 
 def test_parse_feedback_garbage_returns_none():
