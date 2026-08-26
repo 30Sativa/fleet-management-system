@@ -82,7 +82,11 @@ class Stm32BridgeNode(Node):
         self.declare_parameter('sonar3_frame', 'sonar3_link')
         self.declare_parameter('sonar4_frame', 'sonar4_link')
         self.declare_parameter('sonar_min_range', 0.20)
-        self.declare_parameter('sonar_max_range', 6.0)
+        # 2.0 m (was 6.0): sonar feeds the local costmap's sonar_layer now.
+        # Past ~2 m the ~30 deg SR04T beam smears into a wall-sized blob and
+        # would poison cells the LiDAR already covers better. See
+        # docs/phase3-nav2.md section 7.
+        self.declare_parameter('sonar_max_range', 2.0)
         self.declare_parameter('sonar_field_of_view', 0.52)
         self.declare_parameter('feedback_timeout', 1.0)
         self.declare_parameter('feedback_counts_are_cumulative', True)

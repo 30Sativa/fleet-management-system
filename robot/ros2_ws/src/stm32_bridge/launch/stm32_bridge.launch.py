@@ -175,8 +175,11 @@ def generate_launch_description():
             description='Minimum accepted SR04T range in metres.'),
         DeclareLaunchArgument(
             'sonar_max_range',
-            default_value='6.0',
-            description='Maximum accepted SR04T range in metres.'),
+            default_value='2.0',
+            description='Maximum accepted SR04T range in metres. Kept short '
+                        '(local costmap sonar_layer consumer) so the wide '
+                        'SR04T beam does not smear into a false wall at '
+                        'range; see docs/phase3-nav2.md section 7.'),
         DeclareLaunchArgument(
             'sonar_field_of_view',
             default_value='0.52',

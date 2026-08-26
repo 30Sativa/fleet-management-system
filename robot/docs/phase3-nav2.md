@@ -224,9 +224,9 @@ nó quan trọng nhất**.
 Đây là hệ quả trực tiếp của `clearing: true` ở mục 6 — không phải bug, mà là cái
 giá đã biết. Ba cách xử lý:
 
-**a) Dùng 4 con sonar bạn đã có.** `stm32_bridge` đang publish
+**a) Dùng 4 con sonar bạn đã có — ĐÃ BẬT.** `stm32_bridge` publish
 `/ultrasonic/sonar1/range` .. `sonar4` dạng `sensor_msgs/Range` (4 góc vuông
-của khung xe), và **hiện không node nào subscribe**. Nav2 có sẵn
+của khung xe). `local_costmap` trong `nav2_params.yaml` giờ đã có
 `RangeSensorLayer` ăn đúng kiểu message đó, và sonar nhìn thấy vật thấp ở đúng
 dải 0.2–0.85 m mà cả hai cảm biến kia mù:
 
@@ -245,10 +245,17 @@ dải 0.2–0.85 m mà cả hai cảm biến kia mù:
         phi: 1.2
 ```
 
-> Trước khi bật: `sonar_max_range` trong `stm32_bringup` đang để **6.0 m**. SR04T
-> thực tế ~4.5 m, và với chùm ~30° thì ở 3 m vết loang rộng gần 1.6 m — đủ để
-> dựng tường ma giữa hành lang. **Hạ xuống 1.5–2.0 m.** Sonar ở đây chỉ có một
-> việc: canh vùng mù sát robot. Đừng để nó tham gia điều hướng tầm xa.
+> `sonar_max_range` mặc định trong `stm32_bridge` (node + launch file) đã hạ từ
+> 6.0 m xuống **2.0 m** cùng lúc bật layer này. SR04T thực tế ~4.5 m, và với
+> chùm ~30° thì ở 3 m vết loang rộng gần 1.6 m — đủ để dựng tường ma giữa hành
+> lang. Sonar ở đây chỉ có một việc: canh vùng mù sát robot. Nếu cần chỉnh lại,
+> đổi `sonar_max_range` khi launch `stm32_bridge` (launch arg hoặc param
+> override) — đừng để nó tham gia điều hướng tầm xa.
+>
+> Chỉ áp dụng cho `local_costmap` (odom frame, cửa sổ 3x3 m, cập nhật liên
+> tục). `global_costmap` (map frame, tĩnh) KHÔNG có `sonar_layer` — sonar
+> nhiễu nhiều, không nên khắc vĩnh viễn vào bản đồ toàn cục. Build map bằng
+> `slam_toolbox` vẫn chỉ dùng LiDAR (`/scan`), không đụng tới sonar.
 
 **b) Chấp nhận, và để Phase 4 lo.** `/speed_limit` khi có người khiến robot tới
 gần chậm hơn, nên quãng đường mù trôi qua chậm hơn. Không giải quyết được vật
