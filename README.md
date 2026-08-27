@@ -2,9 +2,9 @@
 
 Monorepo for the CampusTour DT-AMR capstone: visitors book a campus tour, an
 autonomous mobile robot guides them, and an operations team schedules and
-monitors the fleet through a Digital Twin synchronised over ROS 2.
-
-<!-- TODO(Duy): 1 dòng nói repo này có phải là toàn bộ hệ thống không, hay Digital Twin / AI assistant nằm repo riêng. -->
+monitors the fleet through a Digital Twin synchronised over ROS 2. This repo
+contains the complete system as separate robot, Digital Twin, backend,
+AI tour-guide and web deploy units.
 
 ## Layout
 
@@ -14,7 +14,9 @@ verification gate.
 | Folder | Work package | What it is | Status |
 |---|---|---|---|
 | [`robot/`](robot/README.md) | WP3 | ROS 2 Humble workspace + STM32 motor firmware | active |
+| [`digital-twin/`](digital-twin/README.md) | WP3 | Live twin synchronization, scenarios and research metrics | not started |
 | `backend/` | WP2 | Booking, scheduling & dispatch API | not started |
+| [`ai-assistant/`](ai-assistant/README.md) | WP4 | Multilingual STT, dialogue/LLM and TTS service | not started |
 | `web/` | WP5 | Visitor app + operations dashboard | not started |
 | [`docs/`](docs/architecture.md) | WP1 | System architecture + decision records | active |
 
@@ -23,7 +25,9 @@ verification gate.
 Pick the folder you are working in and read its README:
 
 - Robot / ROS 2 / firmware → [`robot/README.md`](robot/README.md)
+- Digital Twin → [`digital-twin/README.md`](digital-twin/README.md)
 - Backend → `backend/AGENTS.md` <!-- TODO(WP2): đổi thành backend/README.md khi có -->
+- AI tour-guide assistant → [`ai-assistant/README.md`](ai-assistant/README.md)
 - Frontend → `web/AGENTS.md` <!-- TODO(WP5): đổi thành web/README.md khi có -->
 
 ## Verification
@@ -54,7 +58,7 @@ read the root file first, then the one for the folder they are changing.
 |---|---|---|
 |  | WP1 | Project management & system architecture |
 |  | WP2 | backend/ |
-|  | WP3 | robot/ |
-|  | WP4 | AI tour-guide assistant |
+|  | WP3 | robot/ + digital-twin/ |
+|  | WP4 | ai-assistant/ |
 |  | WP5 | web/ |
 -->

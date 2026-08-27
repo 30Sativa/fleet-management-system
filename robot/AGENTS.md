@@ -44,6 +44,12 @@ Astra Pro (RGB)     -> person detection       -> Nav2 speed limit
   CDC serial and owns nothing below that line.
 - `robot_control` is the mode manager / `cmd_vel` mux. New motion sources go
   through it, not directly onto `/cmd_vel`.
+- `robot_perception` is WP3 person perception for navigation behaviour. It is
+  not the WP4 AI tour-guide assistant and must not contain STT, LLM/dialogue,
+  campus knowledge or TTS orchestration.
+- A future robot-side tour-guide adapter stays thin: ROS stop/task events and
+  audio I/O only. The conversational pipeline belongs in `ai-assistant/`; its
+  cross-folder contract must be recorded in `docs/architecture.md` first.
 - Launch files must keep RViz **off by default** (`rviz:=true` to enable) so a
   headless miniPC does not hang.
 

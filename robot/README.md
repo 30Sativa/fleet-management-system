@@ -51,8 +51,9 @@ The robot software was brought up in four phases; each has a design doc under
 3. **Phase 3 — Nav2** (`docs/phase3-nav2.md`): Astra point cloud feeds the
    local costmap for obstacle avoidance; verified with
    `orbbec_bringup costmap_contrib`.
-4. **Phase 4 — AI** (`docs/phase4-ai.md`): RGB person detection (YOLO / OpenVINO
-   on the mini PC) -> Nav2 speed limit.
+4. **Phase 4 — person perception** (`docs/phase4-ai.md`): RGB person detection
+   (YOLO / OpenVINO on the mini PC) -> Nav2 speed limit. This is navigation
+   perception, not the WP4 AI tour-guide assistant in `ai-assistant/`.
 
 ## Current Deployment Workflow
 

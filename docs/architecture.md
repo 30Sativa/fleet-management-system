@@ -5,7 +5,9 @@ crosses a folder boundary. Anything internal to one folder is documented
 inside that folder.
 
 - Robot internals: [`robot/README.md`](../robot/README.md)
+- Digital Twin internals: [`digital-twin/README.md`](../digital-twin/README.md)
 - Backend internals: `backend/AGENTS.md` <!-- TODO(WP2) -->
+- AI tour-guide internals: [`ai-assistant/README.md`](../ai-assistant/README.md)
 - Frontend internals: `web/AGENTS.md` <!-- TODO(WP5) -->
 
 ---
@@ -26,10 +28,20 @@ inside that folder.
    +---------------------+-------------------+
                          | ??? (contract not fixed yet)
                          v
+   +-----------------------------------------+       +------------------------+
+   |  robot/   ROS 2 fleet + STM32 firmware   |  ???  |  ai-assistant/         |
+   |  person perception + thin audio adapter  |<----->|  STT + dialogue + TTS |
+   +-----------------------------------------+       +------------------------+
+                         |
+                         | ??? twin synchronization
+                         v
    +-----------------------------------------+
-   |  robot/   ROS 2 fleet + STM32 firmware   |
+   |  digital-twin/ scenarios + measurements  |
    +-----------------------------------------+
 ```
+
+`???` marks cross-deploy-unit contracts that are not fixed yet. The assistant
+box is deliberately outside `robot/`; Section 5 defines the ownership boundary.
 
 <!-- TODO(WP1): khi backend và web có hình dạng thật thì vẽ lại sơ đồ này cho đúng. -->
 
@@ -45,6 +57,7 @@ RPLiDAR A3M1        -> /scan                 -> local + global costmap, AMCL, SL
 encoder + IMU       -> /odom                 -> odom -> base_link TF
 Astra Pro (depth)   -> /camera/depth/points  -> LOCAL costmap ONLY
 Astra Pro (RGB)     -> person detection      -> Nav2 speed limit
+                       (`robot_perception`, not the AI tour guide)
 ```
 
 The STM32G431 owns real-time stepping. ROS 2 sends wheel-speed commands over
@@ -84,16 +97,50 @@ Lệnh backend đẩy xuống:
 
 ## 4. Digital Twin
 
-<!-- TODO(WP3): twin đồng bộ bằng cách nào (bridge node? bag replay? shared topic namespace?),
-     chạy ở đâu (miniPC / máy khác), và đo latency ra sao — vì đây là research question
-     của đồ án nên số liệu đo phải lặp lại được. -->
+`robot/ros2_ws/src/simulation/` and `digital-twin/` have different purposes:
+
+| Concern | Location | Responsibility |
+|---|---|---|
+| Robot simulation | `robot/ros2_ws/src/simulation/` | Minimal Gazebo worlds and launches for developing/testing the robot stack without hardware |
+| Digital Twin | `digital-twin/` | Live state synchronization, scenario orchestration, replay and repeatable latency/accuracy experiments |
+
+The Digital Twin runs on a simulation workstation/server, never on the robot
+miniPC. It must not duplicate the authoritative robot model, navigation logic
+or ROS interfaces from `robot/`, and a scenario result must not directly
+command a physical robot. Applying a validated route or schedule goes through
+the authenticated backend/operator workflow.
+
+> **INTERFACE NOT DECIDED YET.** WP2 and WP3 must define the synchronization
+> transport, telemetry schema, timestamp/clock policy, update rate and replay
+> format here before implementing the bridge. The experiment runner must record
+> enough configuration and timing data for latency/accuracy results to be
+> reproduced.
 
 ---
 
 ## 5. AI tour-guide assistant
 
-<!-- TODO(WP4): STT -> LLM -> TTS chạy ở đâu (miniPC Dell OptiPlex 3050, i3-7100T, 8GB, không GPU rời),
-     trigger bằng event nào từ robot, và fallback khi mất mạng. -->
+`robot_perception` and the AI tour-guide assistant are separate systems with
+different owners and safety boundaries:
+
+| Concern | Owner | Runs on | Responsibility |
+|---|---|---|---|
+| Person perception | WP3, `robot/ros2_ws/src/robot_perception/` | robot miniPC | RGB-D person detection and Nav2 speed limiting |
+| AI tour guide | WP4, `ai-assistant/` | server/cloud | multilingual STT, campus knowledge/dialogue and TTS |
+
+`robot_perception` does not answer visitor questions, generate narration or
+own campus content. The AI tour guide does not publish `/cmd_vel`, set Nav2
+goals, alter `/speed_limit`, or make any movement/safety decision.
+
+A future thin robot-side adapter may listen for stop/task events, capture or
+forward visitor audio, play returned speech and use cached narration when the
+assistant is unavailable. That adapter belongs in `robot/`; STT, retrieval,
+LLM/dialogue and TTS orchestration belong in `ai-assistant/`.
+
+> **INTERFACE NOT DECIDED YET.** Before either side implements the integration,
+> WP3 and WP4 must define the event/audio transport, schemas, authentication,
+> timeouts and offline fallback here. Until then, neither side should hardcode
+> cross-boundary field names.
 
 ---
 
@@ -103,7 +150,9 @@ Lệnh backend đẩy xuống:
 |---|---|---|---|
 | `robot/` ROS 2 | GitHub Actions -> DockerHub | `docker compose pull && up -d` | robot miniPC |
 | `robot/` firmware | GitHub Actions (compile only) | manual ST-Link flash | STM32G431 |
+| `digital-twin/` | <!-- TODO(WP3) --> | service/container | simulation workstation/server |
 | `backend/` | <!-- TODO(WP2) --> | <!-- TODO(WP2) --> | <!-- TODO(WP2) --> |
+| `ai-assistant/` | <!-- TODO(WP4) --> | service/container | server/cloud, not robot miniPC |
 | `web/` | <!-- TODO(WP5) --> | <!-- TODO(WP5) --> | <!-- TODO(WP5) --> |
 
 CI never flashes the STM32 and the miniPC never auto-flashes it — see

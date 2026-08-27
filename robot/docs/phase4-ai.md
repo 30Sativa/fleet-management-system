@@ -1,4 +1,8 @@
-# Phase 4 — AI perception (person → Nav2)
+# Phase 4 — person perception (person → Nav2)
+
+> **Ranh giới:** phase này thuộc WP3 và chỉ nhận diện người để điều chỉnh hành
+> vi Nav2. Nó không phải WP4 AI tour-guide assistant. STT, hội thoại/LLM, tri
+> thức khuôn viên và TTS thuộc `ai-assistant/`; xem `docs/architecture.md`.
 
 ## 0. Đánh giá sơ đồ Phase 4 ban đầu
 

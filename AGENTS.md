@@ -24,7 +24,9 @@ build, its own verification, and its own `AGENTS.md`.
 | Folder | What it is | Deploys to | Read before editing |
 |---|---|---|---|
 | `robot/` | ROS 2 Humble workspace + STM32 motor firmware | robot miniPC (Docker image) | `robot/AGENTS.md` |
+| `digital-twin/` | Twin synchronization, scenarios and research metrics | simulation workstation/server | `digital-twin/AGENTS.md` |
 | `backend/` | Booking, scheduling & dispatch API | <!-- TODO(Duy): server nào --> | `backend/AGENTS.md` |
+| `ai-assistant/` | Multilingual STT, dialogue/LLM and TTS service | server/cloud, not the robot miniPC | `ai-assistant/AGENTS.md` |
 | `web/` | Visitor app + operations dashboard | <!-- TODO(Duy): host nào --> | `web/AGENTS.md` |
 | `docs/` | System-level architecture and decisions | — | `docs/architecture.md` |
 | `scripts/` | Cross-folder entry points | — | — |

@@ -3,7 +3,7 @@
 #
 #   scripts/verify              -> every folder that has a verify script
 #   scripts/verify robot        -> one folder
-#   scripts/verify robot web    -> several
+#   scripts/verify robot digital-twin -> several
 #
 # Exit code is the contract:  0 = PASS, non-zero = FAIL.
 # A folder script may exit 3 to mean SKIPPED (nothing to verify yet).
@@ -16,7 +16,7 @@ cd "$ROOT" || exit 1
 if [ "$#" -gt 0 ]; then
   TARGETS=("$@")
 else
-  TARGETS=(robot backend web)
+  TARGETS=(robot digital-twin backend ai-assistant web)
 fi
 
 failed=()

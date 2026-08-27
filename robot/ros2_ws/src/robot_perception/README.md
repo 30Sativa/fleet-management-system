@@ -3,7 +3,12 @@
 Phase 4: nhận diện **người** bằng RGB-D (Astra Pro) và cho Nav2 **giảm tốc** khi
 có người phía trước. Không thay LiDAR, không tự lái — chỉ thêm một lớp hành vi.
 
-Tài liệu đầy đủ: `docs/phase4-ai.md`.
+Đây là **person perception của WP3**, không phải AI tour-guide assistant của
+WP4. Package này không chứa STT, LLM/dialogue, tri thức khuôn viên hay TTS; các
+phần đó thuộc `ai-assistant/`. Ranh giới đầy đủ nằm trong
+`docs/architecture.md`.
+
+Tài liệu đầy đủ: `robot/docs/phase4-ai.md`.
 
 ## Vai trò
 

@@ -11,6 +11,10 @@
 *.sln.docstates
 *.env
 
+# Filesystem/editor temporary and backup files
+.fuse_hidden*
+*.bak
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -444,4 +448,3 @@ _to_delete/
 # Docker Compose env override (DOCKER_IMAGE=<dockerhub-username>/robot-ros2:latest, etc).
 # Machine-local, never commit — see robot/docker-compose.yml comments.
 .env
-
