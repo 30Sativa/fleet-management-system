@@ -19,6 +19,8 @@ services:
       - "${SERIAL_PORT:-/dev/ttyACM0}:${SERIAL_PORT:-/dev/ttyACM0}"
       # RPLiDAR A3M1
       - "${LIDAR_PORT:-/dev/ttyUSB0}:${LIDAR_PORT:-/dev/ttyUSB0}"
+      # Gamepad (joystick) - dùng để lái tay lúc build map
+      - "${JOY_DEV:-/dev/input/js0}:${JOY_DEV:-/dev/input/js0}"
     volumes:
       # Lưu map RA NGOÀI container: map robot build được nằm ở host, KHÔNG mất
       # khi container tắt/update image. Trỏ vào package robot_navigation/maps.
