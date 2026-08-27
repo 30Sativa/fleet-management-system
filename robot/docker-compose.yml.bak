@@ -10,7 +10,6 @@ services:
     environment:
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
       RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
-      ROS_DISCOVERY_SERVER: ${ROS_DISCOVERY_SERVER:-127.0.0.1:11811}
       SERIAL_PORT: ${SERIAL_PORT:-/dev/ttyACM0}
       BAUDRATE: ${BAUDRATE:-115200}
       LIDAR_PORT: ${LIDAR_PORT:-/dev/ttyUSB0}
