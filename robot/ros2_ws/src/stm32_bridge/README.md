@@ -177,14 +177,17 @@ Useful tuning examples:
 ```bash
 ros2 launch stm32_bridge stm32_bridge.launch.py speed_scale:=0.2
 ros2 launch stm32_bridge stm32_bridge.launch.py max_wheel_speed_mm_s:=150
-ros2 launch stm32_bridge stm32_bridge.launch.py invert_left:=true
+ros2 launch stm32_bridge stm32_bridge.launch.py invert_left:=false invert_right:=false
 ros2 launch stm32_bridge stm32_bridge.launch.py publish_odom:=true publish_tf:=true
 ```
 
-The launch defaults are intentionally bench-safe. `teleop_twist_keyboard`
-usually sends `0.5 m/s` when pressing `i`; with `speed_scale=0.3` the bridge
-sends about `150 mm/s` to both wheels. The `1600` value in firmware is the HBS57H
-driver resolution in pulses per motor revolution, not a wheel speed.
+The launch defaults are intentionally bench-safe. For the installed drivetrain,
+both command signs are inverted so `i` (ROS `linear.x > 0`) drives physically
+forward. Override both `invert_*` arguments together only after verifying the
+motor direction on a raised-wheel bench test. `teleop_twist_keyboard` usually
+sends `0.5 m/s` when pressing `i`; with `speed_scale=0.3` the bridge sends about
+`150 mm/s` to both wheels. The `1600` value in firmware is the HBS57H driver
+resolution in pulses per motor revolution, not a wheel speed.
 
 ## Run Teleop
 
@@ -231,8 +234,8 @@ ros2 run tf2_tools view_frames
 | `max_wheel_speed_mm_s` | `250.0` | Clamp per-wheel command, mm/s |
 | `send_rate_hz` | `20.0` | Periodic serial send/read rate |
 | `cmd_timeout` | `0.5` | Send STOP after this many seconds without `/cmd_vel` |
-| `invert_left` | `false` | Flip left **command** sign only (does not affect odometry) |
-| `invert_right` | `false` | Flip right **command** sign only (does not affect odometry) |
+| `invert_left` | `true` | Flip left **command** sign only (does not affect odometry) |
+| `invert_right` | `true` | Flip right **command** sign only (does not affect odometry) |
 | `odom_invert_left` | `false` | Flip left feedback count sign for **odometry only** |
 | `odom_invert_right` | `false` | Flip right feedback count sign for **odometry only** |
 | `speed_scale` | `0.3` | Scale wheel commands before invert and clamp |
@@ -262,8 +265,9 @@ ros2 run tf2_tools view_frames
 
 ## Test Checklist
 
-- Forward key sends `CMD,<seq>,positive,positive`.
-- Backward key sends `CMD,<seq>,negative,negative`.
+- Forward key produces `linear.x > 0`; with the installed drivetrain
+  correction the bridge sends `CMD,<seq>,negative,negative`.
+- Backward key produces `linear.x < 0`; the bridge sends positive wheel values.
 - Rotate key sends opposite signs on left and right.
 - If forward motion moves one wheel only, test each driver path with
   `tools/motor_test_one_wheel.ps1` and compare the left/right counts in `FB`.

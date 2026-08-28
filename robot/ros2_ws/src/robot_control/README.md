@@ -71,6 +71,10 @@ ros2 launch robot_control manual_mode.launch.py \
 
 `teleop_twist_keyboard` is remapped to `/cmd_vel_manual`. For joystick control,
 launch your joystick stack separately and remap its output to `/cmd_vel_manual`.
+The installed drivetrain uses `invert_left:=true invert_right:=true` by default
+so the `i` key (positive ROS `linear.x`) moves the robot forward. Pass both as
+`false` together only if a bench test confirms the motor wiring is already
+forward-oriented.
 
 ## Manual Mapping
 

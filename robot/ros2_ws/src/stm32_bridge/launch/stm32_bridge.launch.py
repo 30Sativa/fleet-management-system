@@ -98,12 +98,12 @@ def generate_launch_description():
             description='Send stop if no /cmd_vel arrives for this many seconds.'),
         DeclareLaunchArgument(
             'invert_left',
-            default_value='false',
-            description='Invert left wheel command sign.'),
+            default_value='true',
+            description='Invert left wheel command sign for the installed drivetrain.'),
         DeclareLaunchArgument(
             'invert_right',
-            default_value='false',
-            description='Invert right wheel command sign.'),
+            default_value='true',
+            description='Invert right wheel command sign for the installed drivetrain.'),
         DeclareLaunchArgument(
             'odom_invert_left',
             default_value='false',

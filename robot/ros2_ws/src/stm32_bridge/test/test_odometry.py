@@ -324,6 +324,30 @@ def test_non_finite_twist_is_rejected():
     assert not Stm32BridgeNode._is_finite_twist(twist(0.0, float('inf')))
 
 
+def test_forward_twist_is_inverted_for_installed_drive():
+    """The installed motor wiring needs both command signs flipped."""
+    node = Stm32BridgeNode.__new__(Stm32BridgeNode)
+    node.wheel_base = 0.46
+    node.speed_scale = 0.3
+    node.invert_left = True
+    node.invert_right = True
+    node.max_wheel_speed_mm_s = 250.0
+    node._left_mm_s = 0
+    node._right_mm_s = 0
+    node._command_is_stop = True
+    node._last_cmd_time = None
+    node._timed_out = True
+
+    node._cmd_vel_callback(SimpleNamespace(
+        linear=SimpleNamespace(x=0.2, y=0.0, z=0.0),
+        angular=SimpleNamespace(x=0.0, y=0.0, z=0.0),
+    ))
+
+    assert node._left_mm_s == -60
+    assert node._right_mm_s == -60
+    assert not node._command_is_stop
+
+
 def test_imu_starts_aligned_and_invalid_sample_falls_back():
     node = Stm32BridgeNode.__new__(Stm32BridgeNode)
     node._theta = 1.0

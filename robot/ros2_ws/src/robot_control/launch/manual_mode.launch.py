@@ -15,6 +15,8 @@ def generate_launch_description():
     wheel_radius = LaunchConfiguration('wheel_radius')
     max_wheel_speed_mm_s = LaunchConfiguration('max_wheel_speed_mm_s')
     speed_scale = LaunchConfiguration('speed_scale')
+    invert_left = LaunchConfiguration('invert_left')
+    invert_right = LaunchConfiguration('invert_right')
     base_frame = LaunchConfiguration('base_frame')
     odom_frame = LaunchConfiguration('odom_frame')
     initial_mode = LaunchConfiguration('initial_mode')
@@ -56,6 +58,12 @@ def generate_launch_description():
                               description='Per-wheel safety clamp.'),
         DeclareLaunchArgument('speed_scale', default_value='0.3',
                               description='Bench-safe command scale.'),
+        DeclareLaunchArgument(
+            'invert_left', default_value='true',
+            description='Invert left wheel command for the installed drivetrain.'),
+        DeclareLaunchArgument(
+            'invert_right', default_value='true',
+            description='Invert right wheel command for the installed drivetrain.'),
         DeclareLaunchArgument('base_frame', default_value='base_footprint',
                               description='Bridge odometry child frame.'),
         DeclareLaunchArgument('odom_frame', default_value='odom',
@@ -88,6 +96,8 @@ def generate_launch_description():
                 'wheel_radius': wheel_radius,
                 'max_wheel_speed_mm_s': max_wheel_speed_mm_s,
                 'speed_scale': speed_scale,
+                'invert_left': invert_left,
+                'invert_right': invert_right,
                 'odom_frame': odom_frame,
                 'base_frame': base_frame,
                 'publish_odom': 'true',

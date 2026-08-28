@@ -60,8 +60,11 @@ class Stm32BridgeNode(Node):
         self.declare_parameter('max_wheel_speed_mm_s', 250.0)
         self.declare_parameter('send_rate_hz', 20.0)
         self.declare_parameter('cmd_timeout', 0.5)
-        self.declare_parameter('invert_left', False)
-        self.declare_parameter('invert_right', False)
+        # The installed drivetrain's logical + direction is opposite to ROS
+        # base_link forward.  Keep the correction at the ROS/serial boundary;
+        # firmware feedback counts remain in their logical wheel convention.
+        self.declare_parameter('invert_left', True)
+        self.declare_parameter('invert_right', True)
         self.declare_parameter('odom_invert_left', False)
         self.declare_parameter('odom_invert_right', False)
         self.declare_parameter('speed_scale', 0.3)
