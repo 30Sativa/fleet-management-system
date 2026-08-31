@@ -1,15 +1,27 @@
 #!/usr/bin/env bash
-# TODO(WP2): thay toàn bộ phần dưới bằng lệnh thật khi backend có code.
-#   Gợi ý thứ tự:  typecheck -> lint -> unit test -> integration test
+# TODO(WP2): khi CampusTour.sln đã được tạo (dotnet new), xóa nhánh SKIPPED
+# bên dưới và bật khối lệnh thật đã note sẵn.
 #   Bắt buộc: exit 0 khi pass, exit != 0 khi fail. Đừng nuốt lỗi bằng `|| true`.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-if [ ! -f package.json ] && [ ! -f pyproject.toml ] && [ ! -f go.mod ]; then
-  echo "SKIPPED: backend/ chưa có source. Không có gì để verify."
+SOLUTION="CampusTour.sln"
+
+if [ ! -f "$SOLUTION" ]; then
+  echo "SKIPPED: backend/ chưa có $SOLUTION. Không có gì để verify."
   exit 3   # 3 = SKIPPED (chưa có gì để verify)
 fi
 
-echo "FAIL: backend/ đã có source nhưng scripts/verify chưa được điền."
-echo "      Mở backend/scripts/verify và thay phần TODO bằng lệnh thật."
+# --- Real checks once the solution exists (uncomment) ---
+# dotnet restore "$SOLUTION"
+# dotnet build "$SOLUTION" -warnaserror
+# dotnet test "$SOLUTION"
+# # If EF Core migrations exist, also fail when the model has pending changes
+# # not captured in a migration:
+# dotnet ef migrations has-pending-model-changes \
+#   --project src/CampusTour.Infrastructure \
+#   --startup-project src/CampusTour.Api
+
+echo "FAIL: $SOLUTION tồn tại nhưng scripts/verify chưa được điền."
+echo "      Mở backend/scripts/verify, bỏ comment khối lệnh dotnet thật."
 exit 1

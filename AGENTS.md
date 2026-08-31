@@ -12,7 +12,7 @@ an autonomous mobile robot (AMR) guides them around campus, and an operations
 team schedules and monitors the fleet through a Digital Twin kept in sync with
 the real robots over ROS 2.
 
-<!-- TODO(Duy): 1-2 câu mô tả phạm vi của repo NÀY (repo này chứa gì, cái gì nằm repo khác). -->
+Repo này chứa toàn bộ hệ thống CampusTour DT-AMR: robot, digital twin, backend, ai-assistant và web. Không có phần nào của hệ thống tách sang repo khác.
 
 ---
 
@@ -25,9 +25,9 @@ build, its own verification, and its own `AGENTS.md`.
 |---|---|---|---|
 | `robot/` | ROS 2 Humble workspace + STM32 motor firmware | robot miniPC (Docker image) | `robot/AGENTS.md` |
 | `digital-twin/` | Twin synchronization, scenarios and research metrics | simulation workstation/server | `digital-twin/AGENTS.md` |
-| `backend/` | Booking, scheduling & dispatch API | <!-- TODO(Duy): server nào --> | `backend/AGENTS.md` |
+| `backend/` | Booking, scheduling & dispatch API | AWS EC2 | `backend/AGENTS.md` |
 | `ai-assistant/` | Multilingual STT, dialogue/LLM and TTS service | server/cloud, not the robot miniPC | `ai-assistant/AGENTS.md` |
-| `web/` | Visitor app + operations dashboard | <!-- TODO(Duy): host nào --> | `web/AGENTS.md` |
+| `web/` | Visitor app + operations dashboard | Vercel | `web/AGENTS.md` |
 | `docs/` | System-level architecture and decisions | — | `docs/architecture.md` |
 | `scripts/` | Cross-folder entry points | — | — |
 
@@ -145,4 +145,18 @@ Never claim DONE for behaviour you were not able to execute.
   message field) without recording it in `docs/architecture.md` — another
   work package depends on it.
 
-<!-- TODO(Duy): thêm constraint riêng của team nếu có (ví dụ: branch naming, ai được merge vào main). -->
+### Git workflow
+
+- Branches: `main` (production) and `develop` (integration/testing).
+- Feature branches: `feature/{tên}/{fe|be}-{chức-năng}`, e.g.
+  `feature/duy/be-booking`, `feature/an/fe-dashboard`.
+- Flow: `feature/*` -> `develop` (merge freely once your own change works) ->
+  test on `develop` like a sprint/scrum cycle -> when `develop` is stable,
+  open a PR `develop` -> `main`.
+- `main` is a **protected branch**: no direct pushes, no direct merges. Every
+  merge into `main` must go through a pull request with at least one review
+  approval. `develop` is not protected — merge into it directly once your own
+  branch is working.
+- An agent must never merge into `main` itself, disable branch protection, or
+  push directly to `main`. Open a PR into `main` (or `develop`, if instructed)
+  and stop — a human approves and merges.
