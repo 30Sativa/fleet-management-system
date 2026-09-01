@@ -115,7 +115,13 @@ folder-by-type) khi bắt đầu viết component đầu tiên. -->
 The dashboard shows live fleet state. That data crosses a contract boundary
 owned jointly with `robot/` and `backend/` — see `docs/architecture.md`.
 
-<!-- TODO(WP5): chốt cách nhận realtime (websocket / SSE / polling) và ghi vào docs/architecture.md. -->
+How the backend itself gets that state from the robots is settled (a bridge
+node in `robot/`, `docs/architecture.md` §3). What is still open is only the
+last hop, backend -> browser.
+
+<!-- TODO(WP5): chốt cách web nhận realtime từ backend (websocket / SSE /
+polling bằng TanStack Query refetchInterval) và ghi vào docs/architecture.md.
+Polling là mặc định hợp lý nếu tần suất cập nhật vài giây là đủ. -->
 
 ---
 

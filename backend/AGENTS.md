@@ -91,7 +91,19 @@ CampusTour.Domain
   an interface in `Application` + implementation in `Infrastructure`. Do not
   reach from `Api` straight into `Infrastructure`.
 
-<!-- TODO(WP2): rule riêng cho scheduling/dispatch — ví dụ: thuật toán assign robot nằm ở service nào, có được gọi trực tiếp ROS bridge từ controller không (mặc định: không). -->
+Scheduling / dispatch specifically:
+
+- The robot-assignment algorithm (which robot takes which tour, when) lives in
+  an **`Application` service** — e.g. `DispatchService`. It fetches robots and
+  bookings through repository interfaces and returns the decision. Do not put
+  it in a controller, a repository, or the ROS bridge.
+- The fleet bridge client (the thing that actually talks to the robot over
+  REST/gRPC) is **`Infrastructure`**, behind an `Application` interface such as
+  `IFleetGateway`. `Application` code calls the interface, never an HTTP/gRPC
+  client directly.
+- **A controller must never call the bridge directly.** The path is always
+  `Api -> Application service -> IFleetGateway -> Infrastructure`, even for a
+  one-line "send this command" endpoint.
 
 ---
 
@@ -160,7 +172,22 @@ The robot side (`robot/`) is a separate deploy unit maintained by WP3. Any
 change to the telemetry the backend consumes or the commands it sends is a
 **contract change**: update `docs/architecture.md` in the same PR and tell WP3.
 
-<!-- TODO(WP2+WP3): chốt transport (rosbridge websocket / MQTT / REST) và schema, rồi ghi vào docs/architecture.md. Trước khi chốt, đừng hardcode field name ở hai đầu. -->
+The backend does **not** speak ROS. It talks to a thin bridge node that lives
+in `robot/` and translates to ROS 2 on the other side — full topology in
+`docs/architecture.md` §3. For the backend that means:
+
+- One `Application` interface (`IFleetGateway` or similar) describes what the
+  fleet can do — send a tour assignment, cancel, read last-known state. Its
+  implementation in `Infrastructure` is the REST/gRPC client for the bridge.
+- Do not add ROS concepts (topic names, action names, message types) to
+  `Domain` or `Application`. They stop at the `Infrastructure` boundary.
+- Treat the robot as unreliable: it can be offline, slow, or mid-reboot. A
+  dispatch call that cannot reach a robot must fail the booking cleanly, not
+  hang a request thread or leave a half-assigned booking in the database.
+
+<!-- TODO(WP2+WP3): chốt wire protocol (REST vs gRPC), auth cho kênh điều
+khiển robot, và schema telemetry/command — rồi ghi vào docs/architecture.md §3
+trước khi code hai đầu. -->
 
 ---
 

@@ -6,9 +6,9 @@ inside that folder.
 
 - Robot internals: [`robot/README.md`](../robot/README.md)
 - Digital Twin internals: [`digital-twin/README.md`](../digital-twin/README.md)
-- Backend internals: `backend/AGENTS.md` <!-- TODO(WP2) -->
+- Backend internals: [`backend/AGENTS.md`](../backend/AGENTS.md)
 - AI tour-guide internals: [`ai-assistant/README.md`](../ai-assistant/README.md)
-- Frontend internals: `web/AGENTS.md` <!-- TODO(WP5) -->
+- Frontend internals: [`web/AGENTS.md`](../web/AGENTS.md)
 
 ---
 
@@ -26,7 +26,7 @@ inside that folder.
    +-----------------------------------------+
    |  backend/  booking, scheduling, dispatch |
    +---------------------+-------------------+
-                         | ??? (contract not fixed yet)
+                         | REST|gRPC (TBD) via fleet_bridge -> Section 3
                          v
    +-----------------------------------------+       +------------------------+
    |  robot/   ROS 2 fleet + STM32 firmware   |  ???  |  ai-assistant/         |
@@ -71,14 +71,39 @@ to command a tour.
 
 ## 3. Robot <-> Backend contract
 
-> **NOT DECIDED YET.** Until this section is filled in, neither side should
-> hardcode a field name. Whoever fixes it writes it here first.
+> **SHAPE DECIDED, SCHEMA NOT.** The bridge topology below is fixed. The wire
+> protocol and the message schema are still open — until they are filled in,
+> neither side should hardcode a field name.
 
-<!-- TODO(WP2 + WP3): chốt và điền:
+The backend does **not** speak ROS. A thin bridge node inside `robot/`
+translates between ROS 2 and the backend API:
 
-Transport:        rosbridge websocket | MQTT | REST polling | gRPC
-Direction:        robot -> backend (telemetry), backend -> robot (commands)
-Auth:             robot control channel phải authenticated (yêu cầu NFR bảo mật)
+```
+backend/ (.NET)  <-- REST | gRPC (TBD) -->  robot/ .../fleet_bridge  <-- ROS 2 -->  robot stack
+```
+
+Settled properties of that bridge:
+
+- **It lives in `robot/`** (WP3 owns it) as a thin ROS 2 package, ships in the
+  robot's existing Docker image, and runs one instance per miniPC. It is not a
+  separate deploy unit and does not live in `backend/` or `digital-twin/`.
+- **It carries both directions**: telemetry robot -> backend, and commands
+  backend -> robot.
+- **It is a translator only.** No booking rules, no scheduling, no robot
+  assignment, no persistence. Those belong to `backend/` — the assignment
+  algorithm is a `CampusTour.Application` service (`backend/AGENTS.md` §3).
+  A bridge that starts deciding *which* robot does *what* is a design error.
+- **Commands land on existing ROS interfaces.** A tour command becomes the
+  `go_to_stop` action from Section 2 — the bridge does not invent a parallel
+  ad-hoc command topic, and does not publish `/cmd_vel` itself.
+- **The connection is outbound from the robot** where possible, so a miniPC on
+  campus wifi behind NAT does not need an inbound route.
+
+<!-- TODO(WP2 + WP3): chốt và điền phần còn lại:
+
+Wire protocol:    REST | gRPC   (chưa chốt — chốt xong ghi vào đây và ADR)
+Auth:             robot control channel phải authenticated (yêu cầu NFR bảo mật).
+                  Chưa chốt dùng lại JWT của backend hay credential riêng cho robot.
 
 Telemetry robot đẩy lên (tối thiểu):
   robot_id, pose (x, y, theta, frame), battery %, task state,
@@ -151,9 +176,9 @@ LLM/dialogue and TTS orchestration belong in `ai-assistant/`.
 | `robot/` ROS 2 | GitHub Actions -> DockerHub | `docker compose pull && up -d` | robot miniPC |
 | `robot/` firmware | GitHub Actions (compile only) | manual ST-Link flash | STM32G431 |
 | `digital-twin/` | <!-- TODO(WP3) --> | service/container | simulation workstation/server |
-| `backend/` | <!-- TODO(WP2) --> | <!-- TODO(WP2) --> | <!-- TODO(WP2) --> |
+| `backend/` | <!-- TODO(WP2) --> | <!-- TODO(WP2): docker image? dotnet publish? --> | AWS EC2 |
 | `ai-assistant/` | <!-- TODO(WP4) --> | service/container | server/cloud, not robot miniPC |
-| `web/` | <!-- TODO(WP5) --> | <!-- TODO(WP5) --> | <!-- TODO(WP5) --> |
+| `web/` | Vercel (git integration) | auto-deploy on push | Vercel, one project |
 
 CI never flashes the STM32 and the miniPC never auto-flashes it — see
 [ADR-0002](decisions/0002-manual-stlink-flash-no-can-bootloader.md).

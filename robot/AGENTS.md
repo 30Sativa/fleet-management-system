@@ -50,6 +50,13 @@ Astra Pro (RGB)     -> person detection       -> Nav2 speed limit
 - A future robot-side tour-guide adapter stays thin: ROS stop/task events and
   audio I/O only. The conversational pipeline belongs in `ai-assistant/`; its
   cross-folder contract must be recorded in `docs/architecture.md` first.
+- The **fleet bridge** to the backend lives here (planned:
+  `robot/ros2_ws/src/fleet_bridge/`), not in `backend/`. It is a translator
+  only — ROS 2 on one side, the backend's REST/gRPC API on the other. It must
+  not contain booking rules, scheduling, or robot-assignment logic; those are
+  backend concerns (`docs/architecture.md` §3). It sends commands through
+  existing interfaces such as the `go_to_stop` action, never straight onto
+  `/cmd_vel`.
 - Launch files must keep RViz **off by default** (`rviz:=true` to enable) so a
   headless miniPC does not hang.
 
