@@ -72,70 +72,71 @@ STM32 from the miniPC or from GitHub Actions.
 ## Docker Compose Environments
 
 Use the compose file that matches the machine. The product compose is for the
-robot miniPC; the dev compose is for the Ubuntu guest inside VMware on the
+robot miniPC; the debug compose is for the Ubuntu guest inside VMware on the
 Windows development machine.
 
 | Environment | Compose file | Image/source | USB devices | RViz | Intended use |
 |---|---|---|---|---|---|
 | Product / robot miniPC | `docker-compose.yml` | Prebuilt DockerHub image | STM32, LiDAR, gamepad | Off by default | Deployed runtime |
-| Dev / Ubuntu VMware | `docker-compose.dev.yml` | Built locally, source mounted | None by default; `hardware` profile adds STM32 + LiDAR | X11 to Ubuntu VM | Build, Gazebo, RViz, hardware mapping |
+| Debug / Ubuntu VMware | `docker-compose.debug.yml` | Same prebuilt DockerHub image | None | X11 to Ubuntu VM | RViz, Gazebo and ROS graph inspection |
+| Optional local build | `docker-compose.dev.yml` | Local build, source mounted | None by default; hardware profile adds STM32 + LiDAR | X11 to Ubuntu VM | Offline development fallback |
 
-### Dev on Ubuntu VMware
+### Debug on Ubuntu VMware
 
-Run these commands inside the Ubuntu VM, from the `robot/` directory. The
-Windows host path is not used by Docker directly; clone or mount the repository
-inside the Ubuntu guest and run Docker there.
+The normal VMware workflow pulls the exact image built by GitHub Actions. Run
+these commands inside the Ubuntu VM, from the `robot/` directory. The Windows
+host path is not used by Docker directly; clone or mount the repository inside
+the Ubuntu guest and run Docker there.
+
+Create `.env` from `.env.example` and pin it to the same tag used by the
+miniPC. Prefer a commit SHA over `latest` when comparing behaviour:
+
+```bash
+cp .env.example .env
+sed -i 's#DOCKER_IMAGE=.*#DOCKER_IMAGE=307sativa/robot-ros2:<git-sha>#' .env
+```
 
 Allow local containers to connect to the VM X server before opening RViz:
 
 ```bash
 xhost +local:docker
-docker compose -f docker-compose.dev.yml up -d --build robot-ros2-dev
-docker exec -it robot-ros2-dev bash
+docker compose -f docker-compose.debug.yml pull
+docker compose -f docker-compose.debug.yml up -d
+docker exec -it robot-ros2-debug bash
 ```
 
-Inside the container, source is mounted at `/ros2_ws/src`. Rebuild after source
-changes, then launch simulation or display with `rviz:=true`:
+The container has no source bind mount and no USB devices. The ROS packages,
+RViz and Gazebo come from the pulled image:
 
 ```bash
-colcon build --symlink-install
-source /ros2_ws/install/setup.bash
-ros2 launch robot_description display.launch.py
+ros2 topic list
+rviz2
 # or:
-ros2 launch robot_control sim_manual.launch.py rviz:=true
+ros2 launch robot_description gazebo.launch.py
 ```
 
-For real-robot mapping, first connect the STM32 and RPLiDAR to the Ubuntu VM
-through VMware USB passthrough, then verify their names:
+To inspect the real robot's ROS graph from VMware, set the same `ROS_DOMAIN_ID`
+and Discovery Server configuration as the miniPC before starting the container.
+For example:
 
 ```bash
-ls -l /dev/ttyACM* /dev/ttyUSB*
+ROS_DISCOVERY_SERVER=192.168.1.87:11811 \
+docker compose -f docker-compose.debug.yml up -d
 ```
 
-Start the hardware profile and run the mapping launch inside its container:
+Do not launch a second real-robot control stack from the debug container. Use
+VMware for `rviz2`, `ros2 topic`, `ros2 service`, `tf2_echo`, and other read-only
+debugging while the miniPC owns the hardware.
+
+The previous local-build compose is still available only as an offline fallback:
 
 ```bash
-docker compose -f docker-compose.dev.yml --profile hardware up -d --build robot-ros2-dev-hardware
-docker exec -it robot-ros2-dev-hardware bash
-
-ros2 launch robot_control manual_mapping.launch.py \
-  port:=/dev/ttyACM0 \
-  lidar_serial_port:=/dev/ttyUSB0 \
-  rviz:=true
+docker compose -f docker-compose.dev.yml up -d --build robot-ros2-dev
 ```
 
-If the device names differ, set them on the compose command:
-
-```bash
-SERIAL_PORT_DEV=/dev/ttyACM1 LIDAR_PORT_DEV=/dev/ttyUSB1 \
-docker compose -f docker-compose.dev.yml --profile hardware up -d robot-ros2-dev-hardware
-```
-
-The Astra Pro remains a native Ubuntu-VM device as documented in the camera
-bring-up notes; its ROS topics can be consumed by the container through
-`network_mode: host` and the same `ROS_DOMAIN_ID`. Do not start the product and
-dev containers for the same robot at the same time, because both could publish
-commands and odometry.
+Use the local-build file only when intentionally testing source that has not
+yet been published by GitHub Actions. It is not part of the normal Windows ->
+GitHub -> DockerHub -> VMware/MiniPC workflow.
 
 When finished with the dev VM X11 permission:
 
@@ -248,7 +249,7 @@ nano .env   # fill in your real DOCKER_IMAGE
 Example `.env` on the miniPC:
 
 ```bash
-DOCKER_IMAGE=yourname/robot-ros2:latest
+DOCKER_IMAGE=307sativa/robot-ros2:0f26981
 SERIAL_PORT=/dev/ttyACM0
 BAUDRATE=115200
 ROS_DOMAIN_ID=0
@@ -260,6 +261,11 @@ Start or update the robot runtime:
 docker compose pull
 docker compose up -d
 ```
+
+When GitHub Actions publishes a new image, update `.env` to the new commit SHA
+on both the miniPC and VMware before comparing results. Use `git pull` only when
+the compose file or other runtime configuration changed; pulling a new image
+does not require a repository update.
 
 If the STM32 appears as `/dev/ttyUSB0` instead of `/dev/ttyACM0`, change:
 

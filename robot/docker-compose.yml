@@ -1,6 +1,6 @@
 services:
   robot-ros2:
-    image: ${DOCKER_IMAGE:-your-dockerhub-username/robot-ros2:latest}
+    image: ${DOCKER_IMAGE:-307sativa/robot-ros2:latest}
     container_name: robot-ros2
     network_mode: host
     # Giai đoạn TEST: tắt auto-restart để bạn hoàn toàn kiểm soát bật/tắt bằng tay.
