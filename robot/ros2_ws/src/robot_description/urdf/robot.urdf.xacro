@@ -60,6 +60,11 @@
     <xacro:body_visual mesh_file="spacer_5.stl"/>
     <xacro:body_visual mesh_file="spacer_7.stl"/>
 
+    <!-- Camera va ga camera chi la visual. camera_link van do
+         orbbec_bringup publish de tranh hai nguon TF trung nhau. -->
+    <xacro:assembly_visual mesh_file="camera_mount.stl" material="dark_grey"/>
+    <xacro:assembly_visual mesh_file="camera_body.stl" material="black"/>
+
     <!-- Collision = box don gian (khong dung mesh) de Gazebo/ODE dung va cham
          NHANH. Mesh chi tiet lam physics cham vai phut trong VM. -->
     <collision>
@@ -80,24 +85,24 @@
   <!-- ===== Banh chinh ===== -->
   <xacro:drive_wheel prefix="left"  reflect="1"
                      mesh_file="left_drive_wheel.stl"
-                     mesh_x="-1.674844" mesh_y="-0.981060" mesh_z="-0.985314"/>
+                     mesh_x="-1.638492371" mesh_y="-0.961104370" mesh_z="-1.054947693"/>
   <xacro:drive_wheel prefix="right" reflect="-1"
                      mesh_file="right_drive_wheel.stl"
-                     mesh_x="-1.674844" mesh_y="-0.548560" mesh_z="-0.985314"/>
+                     mesh_x="-1.638492371" mesh_y="-0.528604355" mesh_z="-1.054947723"/>
 
   <!-- ===== 4 banh phu o 4 goc ===== -->
   <xacro:caster_wheel prefix="front_left" xpos="${caster_front_x}" ypos="${caster_left_y}"
                        mesh_file="front_left_caster.stl"
-                       mesh_x="-1.964838" mesh_y="-0.917062" mesh_z="-0.974809"/>
+                       mesh_x="-1.928486755" mesh_y="-0.897107056" mesh_z="-1.044442749"/>
   <xacro:caster_wheel prefix="front_right" xpos="${caster_front_x}" ypos="${caster_right_y}"
                        mesh_file="front_right_caster.stl"
-                       mesh_x="-1.964857" mesh_y="-0.642145" mesh_z="-0.974809"/>
+                       mesh_x="-1.928504944" mesh_y="-0.622189758" mesh_z="-1.044442749"/>
   <xacro:caster_wheel prefix="rear_left" xpos="${caster_rear_x}" ypos="${caster_left_y}"
                        mesh_file="rear_left_caster.stl"
-                       mesh_x="-1.384831" mesh_y="-0.917062" mesh_z="-0.974809"/>
+                       mesh_x="-1.348479675" mesh_y="-0.897107056" mesh_z="-1.044442749"/>
   <xacro:caster_wheel prefix="rear_right" xpos="${caster_rear_x}" ypos="${caster_right_y}"
                        mesh_file="rear_right_caster.stl"
-                       mesh_x="-1.384831" mesh_y="-0.642062" mesh_z="-0.974809"/>
+                       mesh_x="-1.348479675" mesh_y="-0.622107056" mesh_z="-1.044442749"/>
 
   <!-- ===== ros2_control ===== -->
   <xacro:if value="$(arg use_ros2_control)">

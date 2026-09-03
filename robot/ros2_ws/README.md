@@ -149,7 +149,7 @@ Luồng drivetrain:
 
 ```text
 /cmd_vel -> stm32_bridge -> USB CDC -> STM32 -> motor controller
-STM32 feedback -> stm32_bridge -> /odom -> TF odom -> base_link
+STM32 feedback -> stm32_bridge -> /odom -> TF odom -> base_footprint
 ```
 
 ## Thứ tự đọc code cho người mới

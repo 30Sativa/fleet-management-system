@@ -17,7 +17,7 @@ STM32
         -> FB feedback
         -> stm32_bridge_node
         -> /odom
-        -> TF odom -> base_link
+        -> TF odom -> base_footprint
 ```
 
 The laptop only sends wheel speed commands and computes odometry from STM32
@@ -113,17 +113,17 @@ It publishes:
 It broadcasts:
 
 ```text
-odom -> base_link
+odom -> base_footprint
 ```
 
 Default drivetrain values match the current firmware notes:
 
 ```text
-wheel_radius = 0.095 m       # = 190 mm wheel diameter / 2
+wheel_radius = 0.09725 m     # = 194.5 mm wheel diameter / 2; matched to URDF
 steps_per_rev = 200          # 57EBP98ALC, 1.8 deg/step
 microstep = 8                # 200 * 8 = 1600 = HBS57H driver pulse/rev
 gear_ratio = 10              # F57-L1-10-P2 planetary gearbox
-steps_per_meter ~= 26805     # 1600 * 10 / (pi * 0.190)
+steps_per_meter ~= 26185     # 1600 * 10 / (pi * 0.1945)
 ```
 
 These match the physical constants compiled into the firmware
@@ -225,8 +225,8 @@ ros2 run tf2_tools view_frames
 |---|---:|---|
 | `port` | `/dev/ttyACM0` | STM32 USB CDC serial port |
 | `baudrate` | `115200` | Serial baudrate |
-| `wheel_base` | `0.46` | Distance between wheels, meters (center-to-center) |
-| `wheel_radius` | `0.095` | Wheel radius, meters |
+| `wheel_base` | `0.4325` | Distance between wheels, meters (center-to-center; matched to URDF) |
+| `wheel_radius` | `0.09725` | Wheel radius, meters (matched to URDF) |
 | `steps_per_rev` | `200.0` | Motor full steps per revolution |
 | `microstep` | `8.0` | HBS57H microstep multiplier |
 | `gear_ratio` | `10.0` | Motor-to-wheel gear ratio |
@@ -240,9 +240,9 @@ ros2 run tf2_tools view_frames
 | `odom_invert_right` | `false` | Flip right feedback count sign for **odometry only** |
 | `speed_scale` | `0.3` | Scale wheel commands before invert and clamp |
 | `publish_odom` | `true` | Publish `/odom` |
-| `publish_tf` | `true` | Broadcast `odom -> base_link` |
+| `publish_tf` | `true` | Broadcast `odom -> base_footprint` |
 | `odom_frame` | `odom` | Odometry parent frame |
-| `base_frame` | `base_link` | Robot base child frame |
+| `base_frame` | `base_footprint` | Robot base child frame |
 | `feedback_timeout` | `1.0` | Warn after missing feedback for this many seconds |
 | `feedback_counts_are_cumulative` | `true` | Treat feedback counts as cumulative |
 | `feedback_rate_warn_hz` | `2.0` | Max warning rate for feedback issues |

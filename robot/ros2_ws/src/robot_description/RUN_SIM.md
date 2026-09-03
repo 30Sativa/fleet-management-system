@@ -109,7 +109,7 @@ ros2 run tf2_tools view_frames
 | `controller_manager` không thấy / spawner lỗi | Thiếu `gazebo_ros2_control`. Cài lại apt ở bước 0. |
 | Robot chìm xuống sàn / nảy tung | Inertia/khối lượng chưa hợp lý. Cân lại, sửa `*_mass` trong `common_properties.xacro`. |
 | Robot không chạy khi lái | Sai remap topic. Kiểm tra `ros2 topic list`, lái đúng topic `/diff_drive_controller/cmd_vel_unstamped`. |
-| Quay/đi sai khoảng cách | `wheel_separation` / `wheel_radius` trong YAML lệch URDF. Phải khớp: 0.60 và 0.10. |
+| Quay/đi sai khoảng cách | `wheel_separation` / `wheel_radius` trong YAML lệch URDF. Phải khớp: 0.4325 và 0.09725. |
 | Xe trượt khi quay | Caster `mu` chưa = 0, hoặc bánh chính `mu` thấp. Xem `wheels.xacro`. |
 | RViz báo `$(find robot_description)` not found | Chưa build/source, hoặc extension chưa reload. `colcon build` rồi mở lại. |
 

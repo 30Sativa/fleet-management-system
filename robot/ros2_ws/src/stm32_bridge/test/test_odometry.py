@@ -84,7 +84,7 @@ from stm32_bridge.stm32_bridge_node import Stm32BridgeNode  # noqa: E402
 # the exact ones used in production, not a copy.
 # ---------------------------------------------------------------------------
 class OdometryModel:
-    def __init__(self, wheel_radius=0.095, wheel_base=0.46,
+    def __init__(self, wheel_radius=0.09725, wheel_base=0.4325,
                  steps_per_rev=200.0, microstep=8.0, gear_ratio=10.0):
         circ = 2.0 * math.pi * wheel_radius
         self.steps_per_meter = steps_per_rev * microstep * gear_ratio / circ
@@ -134,10 +134,10 @@ def approx(a, b, tol=1e-6):
 # Tests.
 # ---------------------------------------------------------------------------
 def test_steps_per_meter_matches_firmware():
-    """1600 driver pulses/rev * 10 gear / (pi * 0.190 m)."""
+    """1600 driver pulses/rev * 10 gear / (pi * 0.1945 m)."""
     m = OdometryModel()
-    approx(m.steps_per_meter, 16000.0 / (math.pi * 0.190), tol=1e-3)
-    approx(m.steps_per_meter, 26805.0, tol=1.0)
+    approx(m.steps_per_meter, 16000.0 / (math.pi * 0.1945), tol=1e-3)
+    approx(m.steps_per_meter, 26184.875, tol=1.0)
 
 
 def test_first_sample_is_baseline_no_motion():
@@ -327,7 +327,7 @@ def test_non_finite_twist_is_rejected():
 def test_forward_twist_is_inverted_for_installed_drive():
     """The installed motor wiring needs both command signs flipped."""
     node = Stm32BridgeNode.__new__(Stm32BridgeNode)
-    node.wheel_base = 0.46
+    node.wheel_base = 0.4325
     node.speed_scale = 0.3
     node.invert_left = True
     node.invert_right = True

@@ -8,15 +8,15 @@
 
   <!-- ============================ LiDAR 2D ============================ -->
   <!-- Kich thuoc, tam va mesh origin do truc tiep tu lidar_body.stl. -->
-  <xacro:property name="lidar_radius" value="0.038679688"/>
+  <xacro:property name="lidar_radius" value="0.038679932"/>
   <xacro:property name="lidar_height" value="0.0405"/>
-  <xacro:property name="lidar_x" value="-0.004433431"/>
-  <xacro:property name="lidar_y" value="0.003998868"/>
-  <xacro:property name="lidar_z" value="0.283749721"/>
+  <xacro:property name="lidar_x" value="-0.001439453"/>
+  <xacro:property name="lidar_y" value="0.0"/>
+  <xacro:property name="lidar_z" value="0.266499969"/>
 
   <link name="lidar_link">
     <visual>
-      <origin xyz="-1.670408569 -0.768808868 -1.376563721"
+      <origin xyz="-1.637052856 -0.744854340 -1.430997681"
               rpy="${cad_to_ros_rpy}"/>
       <geometry>
         <mesh filename="package://robot_description/meshes/lidar_body.stl"

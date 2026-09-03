@@ -249,12 +249,11 @@ firmware `STOP,<seq>` command.
 - `config/nav2_params.yaml`: `robot_radius=0.47` and `inflation_radius=0.60` are
   set from the real footprint (74x55 cm -> half-diagonal ~0.461 m). `max_vel_x`
   and `max_vel_theta` are still conservative bench defaults; tune on the robot.
-- `wheel_base=0.46` m (center-to-center: 55 cm frame width, wheels inset ~2 cm
-  with ~5 cm tread => centers 4.5 cm in from each edge => 46 cm). Re-measure if
-  the axle spacing changes; it directly affects turn rate and odometry heading.
-- `stm32_bridge` real wheel odometry uses `wheel_radius=0.095` from firmware
-  notes: 190 mm wheel diameter. The current URDF sim still uses 0.10 m; measure
-  the real wheel and align both if needed.
+- `wheel_base=0.4325` m (center-to-center, matched to robot_description).
+  Re-measure if the axle spacing changes; it directly affects turn rate and
+  odometry heading.
+- `stm32_bridge` real wheel odometry uses `wheel_radius=0.09725`, matched to the
+  URDF/controller geometry.
 - STM32 feedback counts are generated STEP pulses, not physical encoder ticks.
   Odometry will drift if wheels slip or motors stall.
 

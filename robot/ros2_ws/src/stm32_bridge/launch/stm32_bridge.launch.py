@@ -61,12 +61,12 @@ def generate_launch_description():
             description='Serial baudrate. USB CDC may ignore it, but keep it stable.'),
         DeclareLaunchArgument(
             'wheel_base',
-            default_value='0.46',
+            default_value='0.4325',
             description='Distance between left and right wheels in meters '
-                        '(center-to-center: 55cm frame - 2x4.5cm inset = 46cm).'),
+                        '(center-to-center, matched to robot_description).'),
         DeclareLaunchArgument(
             'wheel_radius',
-            default_value='0.095',
+            default_value='0.09725',
             description='Wheel radius in meters, used for odometry.'),
         DeclareLaunchArgument(
             'steps_per_rev',

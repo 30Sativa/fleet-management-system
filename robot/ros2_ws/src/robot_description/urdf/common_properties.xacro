@@ -7,10 +7,10 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ===== THAN XE (base / chassis) ===== -->
-  <!-- Bao ngoai cua toan bo 28 mesh than xe, khong tinh banh va LiDAR (m). -->
-  <xacro:property name="base_length" value="0.805422607"/>  <!-- truc X (toi/lui) -->
-  <xacro:property name="base_width"  value="0.566226318"/>  <!-- truc Y (trai/phai) -->
-  <xacro:property name="base_height" value="0.416"/>        <!-- truc Z (cao) -->
+  <!-- Bao ngoai 28 mesh than xe, khong tinh banh, LiDAR va camera (m). -->
+  <xacro:property name="base_length" value="0.802199951"/>  <!-- truc X (toi/lui) -->
+  <xacro:property name="base_width"  value="0.562799988"/>  <!-- truc Y (trai/phai) -->
+  <xacro:property name="base_height" value="0.421100037"/>  <!-- truc Z (cao) -->
   <xacro:property name="base_mass"   value="40.0"/>   <!-- UOC LUONG: doi theo can that -->
 
   <!-- ===== CAD mesh transform ===== -->
@@ -21,14 +21,26 @@
 
   <!-- Moi body STL duoc export trong cung toa do assembly. Origin nay dat
        tam khung CAD tai base_link; khong can offset rieng cho tung part. -->
-  <xacro:property name="body_mesh_origin" value="-1.674842 -0.764810 -1.092814"/>
+  <xacro:property name="body_mesh_origin" value="-1.638492310 -0.744854355 -1.164497711"/>
 
   <!-- Tam box bao ngoai lech khoi tam khung vi vo xe khong doi xung. -->
-  <xacro:property name="base_collision_x" value="-0.001387776"/>
-  <xacro:property name="base_collision_y" value="0.001886533"/>
-  <xacro:property name="base_collision_z" value="0.055499721"/>
+  <xacro:property name="base_collision_x" value="0.0"/>
+  <xacro:property name="base_collision_y" value="0.000049973"/>
+  <xacro:property name="base_collision_z" value="0.056"/>
 
   <xacro:macro name="body_visual" params="mesh_file material:=grey">
+    <visual>
+      <origin xyz="${body_mesh_origin}" rpy="${cad_to_ros_rpy}"/>
+      <geometry>
+        <mesh filename="package://robot_description/meshes/${mesh_file}"
+              scale="${mesh_scale} ${mesh_scale} ${mesh_scale}"/>
+      </geometry>
+      <material name="${material}"/>
+    </visual>
+  </xacro:macro>
+
+  <!-- Phu kien giu toa do assembly nhung khong tham gia tinh body envelope. -->
+  <xacro:macro name="assembly_visual" params="mesh_file material:=grey">
     <visual>
       <origin xyz="${body_mesh_origin}" rpy="${cad_to_ros_rpy}"/>
       <geometry>
@@ -50,7 +62,7 @@
 
   <!-- Vi tri tam banh so voi tam base_link, lay tu CAD. -->
   <xacro:property name="wheel_xoff" value="0.0"/>
-  <xacro:property name="wheel_zoff" value="-0.10753"/>
+  <xacro:property name="wheel_zoff" value="-0.10955"/>
 
   <!-- ===== BANH PHU ===== -->
   <!-- Kich thuoc STL phu khoang 0.169 x 0.171m. -->
@@ -62,12 +74,12 @@
   <xacro:property name="caster_left_y"  value="0.15225"/>
   <xacro:property name="caster_right_y" value="-0.12275"/>
   <!-- Ha xuong de banh phu CHAM DAT (day = day banh chinh) -> robot dung vung,
-       khong lat. caster_zoff = caster_radius - base_z = 0.0855 - 0.20478. -->
-  <xacro:property name="caster_zoff" value="-0.11928"/>
+       khong lat. caster_zoff = caster_radius - base_z = 0.0855 - 0.2068. -->
+  <xacro:property name="caster_zoff" value="-0.1213"/>
 
   <!-- ===== CHIEU CAO LAP DAT ===== -->
   <!-- Base_link la tam khung. Dat theo day banh chinh trong CAD. -->
-  <xacro:property name="base_z" value="0.20478"/>
+  <xacro:property name="base_z" value="0.2068"/>
 
   <!-- ===== INERTIA MACROS ===== -->
   <!-- Khoi hop dac -->

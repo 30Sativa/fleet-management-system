@@ -25,6 +25,8 @@ except ImportError:  # pragma: no cover - depends on host ROS environment
 UINT32_MODULO = 2 ** 32
 INT32_MODULO = 2 ** 32
 INT32_HALF_RANGE = 2 ** 31
+DEFAULT_WHEEL_BASE = 0.4325
+DEFAULT_WHEEL_RADIUS = 0.09725
 DEFAULT_ODOM_COVARIANCE_DIAGONAL = [
     0.01,
     0.01,
@@ -51,8 +53,8 @@ class Stm32BridgeNode(Node):
 
         self.declare_parameter('port', '/dev/ttyACM0')
         self.declare_parameter('baudrate', 115200)
-        self.declare_parameter('wheel_base', 0.46)
-        self.declare_parameter('wheel_radius', 0.095)
+        self.declare_parameter('wheel_base', DEFAULT_WHEEL_BASE)
+        self.declare_parameter('wheel_radius', DEFAULT_WHEEL_RADIUS)
         self.declare_parameter('steps_per_rev', 200.0)
         self.declare_parameter('microstep', 8.0)
         self.declare_parameter('gear_ratio', 10.0)
@@ -201,8 +203,9 @@ class Stm32BridgeNode(Node):
 
         if not math.isfinite(self.wheel_base) or self.wheel_base <= 0.0:
             self.get_logger().warn(
-                'wheel_base must be > 0. Falling back to 0.46 m.')
-            self.wheel_base = 0.46
+                f'wheel_base must be > 0. Falling back to '
+                f'{DEFAULT_WHEEL_BASE} m.')
+            self.wheel_base = DEFAULT_WHEEL_BASE
 
         if not math.isfinite(self.speed_scale) or self.speed_scale < 0.0:
             self.get_logger().warn(
@@ -874,8 +877,9 @@ class Stm32BridgeNode(Node):
         if (not math.isfinite(wheel_circumference) or
                 wheel_circumference <= 0.0):
             self.get_logger().warn(
-                'wheel_radius must be > 0. Falling back to 0.095 m.')
-            self.wheel_radius = 0.095
+                f'wheel_radius must be > 0. Falling back to '
+                f'{DEFAULT_WHEEL_RADIUS} m.')
+            self.wheel_radius = DEFAULT_WHEEL_RADIUS
             wheel_circumference = 2.0 * math.pi * self.wheel_radius
 
         if not math.isfinite(self.steps_per_rev) or self.steps_per_rev <= 0.0:

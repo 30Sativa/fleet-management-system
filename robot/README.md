@@ -33,7 +33,7 @@ supplementary RGB-D perception sensor, **not** the primary localization source.
 
 ```
 RPLiDAR A3M1 -> /scan               -> local + global costmap, AMCL, SLAM
-encoder + IMU (STM32) -> /odom       -> odom -> base_link TF
+encoder + IMU (STM32) -> /odom       -> odom -> base_footprint TF
 Astra Pro -> /camera/depth/points    -> local costmap ONLY (3D obstacles)
 Astra Pro -> RGB                     -> Phase 4 person detection
 ```
@@ -68,6 +68,80 @@ The robot software was brought up in four phases; each has a design doc under
 
 This workflow does not implement a CAN bootloader and does not auto-flash the
 STM32 from the miniPC or from GitHub Actions.
+
+## Docker Compose Environments
+
+Use the compose file that matches the machine. The product compose is for the
+robot miniPC; the dev compose is for the Ubuntu guest inside VMware on the
+Windows development machine.
+
+| Environment | Compose file | Image/source | USB devices | RViz | Intended use |
+|---|---|---|---|---|---|
+| Product / robot miniPC | `docker-compose.yml` | Prebuilt DockerHub image | STM32, LiDAR, gamepad | Off by default | Deployed runtime |
+| Dev / Ubuntu VMware | `docker-compose.dev.yml` | Built locally, source mounted | None by default; `hardware` profile adds STM32 + LiDAR | X11 to Ubuntu VM | Build, Gazebo, RViz, hardware mapping |
+
+### Dev on Ubuntu VMware
+
+Run these commands inside the Ubuntu VM, from the `robot/` directory. The
+Windows host path is not used by Docker directly; clone or mount the repository
+inside the Ubuntu guest and run Docker there.
+
+Allow local containers to connect to the VM X server before opening RViz:
+
+```bash
+xhost +local:docker
+docker compose -f docker-compose.dev.yml up -d --build robot-ros2-dev
+docker exec -it robot-ros2-dev bash
+```
+
+Inside the container, source is mounted at `/ros2_ws/src`. Rebuild after source
+changes, then launch simulation or display with `rviz:=true`:
+
+```bash
+colcon build --symlink-install
+source /ros2_ws/install/setup.bash
+ros2 launch robot_description display.launch.py
+# or:
+ros2 launch robot_control sim_manual.launch.py rviz:=true
+```
+
+For real-robot mapping, first connect the STM32 and RPLiDAR to the Ubuntu VM
+through VMware USB passthrough, then verify their names:
+
+```bash
+ls -l /dev/ttyACM* /dev/ttyUSB*
+```
+
+Start the hardware profile and run the mapping launch inside its container:
+
+```bash
+docker compose -f docker-compose.dev.yml --profile hardware up -d --build robot-ros2-dev-hardware
+docker exec -it robot-ros2-dev-hardware bash
+
+ros2 launch robot_control manual_mapping.launch.py \
+  port:=/dev/ttyACM0 \
+  lidar_serial_port:=/dev/ttyUSB0 \
+  rviz:=true
+```
+
+If the device names differ, set them on the compose command:
+
+```bash
+SERIAL_PORT_DEV=/dev/ttyACM1 LIDAR_PORT_DEV=/dev/ttyUSB1 \
+docker compose -f docker-compose.dev.yml --profile hardware up -d robot-ros2-dev-hardware
+```
+
+The Astra Pro remains a native Ubuntu-VM device as documented in the camera
+bring-up notes; its ROS topics can be consumed by the container through
+`network_mode: host` and the same `ROS_DOMAIN_ID`. Do not start the product and
+dev containers for the same robot at the same time, because both could publish
+commands and odometry.
+
+When finished with the dev VM X11 permission:
+
+```bash
+xhost -local:docker
+```
 
 ## How To Build Docker Image Locally
 

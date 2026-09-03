@@ -45,6 +45,7 @@ class RobotDescriptionMeshTest(unittest.TestCase):
         root = ET.parse(ROBOT_XACRO).getroot()
         reference_tags = {
             f"{{{XACRO_NS}}}body_visual",
+            f"{{{XACRO_NS}}}assembly_visual",
             f"{{{XACRO_NS}}}drive_wheel",
             f"{{{XACRO_NS}}}caster_wheel",
         }
@@ -61,7 +62,7 @@ class RobotDescriptionMeshTest(unittest.TestCase):
         )
         mesh_files = sorted(path.name for path in MESH_DIR.glob("*.stl"))
 
-        self.assertEqual(35, len(references))
+        self.assertEqual(37, len(references))
         self.assertEqual(len(references), len(set(references)))
         self.assertEqual(mesh_files, sorted(references))
 
@@ -120,6 +121,118 @@ class RobotDescriptionMeshTest(unittest.TestCase):
             float(properties["base_collision_z"]),
         ]
         for actual, expected_value in zip(collision_center, expected_center):
+            self.assertAlmostEqual(expected_value, actual, places=6)
+
+    def test_mesh_origins_match_cad_assembly(self):
+        root = ET.parse(ROBOT_XACRO).getroot()
+        common_root = ET.parse(COMMON_XACRO).getroot()
+        property_tag = f"{{{XACRO_NS}}}property"
+        properties = {
+            element.attrib["name"]: element.attrib["value"]
+            for element in common_root.iter(property_tag)
+        }
+
+        chassis_min, chassis_max = read_stl_bounds(MESH_DIR / "chassis.stl")
+        chassis_center = [
+            (chassis_min[axis] + chassis_max[axis]) / 2 for axis in range(3)
+        ]
+        body_origin = [
+            float(value) for value in properties["body_mesh_origin"].split()
+        ]
+        expected_body_origin = [
+            -chassis_center[2] / 1000,
+            -chassis_center[0] / 1000,
+            -chassis_center[1] / 1000,
+        ]
+        for actual, expected_value in zip(body_origin, expected_body_origin):
+            self.assertAlmostEqual(expected_value, actual, places=6)
+
+        drive_tag = f"{{{XACRO_NS}}}drive_wheel"
+        caster_tag = f"{{{XACRO_NS}}}caster_wheel"
+        caster_positions = {
+            "front_left": ("caster_front_x", "caster_left_y"),
+            "front_right": ("caster_front_x", "caster_right_y"),
+            "rear_left": ("caster_rear_x", "caster_left_y"),
+            "rear_right": ("caster_rear_x", "caster_right_y"),
+        }
+
+        for element in list(root.iter(drive_tag)) + list(root.iter(caster_tag)):
+            minimum, maximum = read_stl_bounds(
+                MESH_DIR / element.attrib["mesh_file"]
+            )
+            cad_center = [
+                (minimum[axis] + maximum[axis]) / 2 for axis in range(3)
+            ]
+            expected_mesh_origin = [
+                -cad_center[2] / 1000,
+                -cad_center[0] / 1000,
+                -cad_center[1] / 1000,
+            ]
+            actual_mesh_origin = [
+                float(element.attrib[name])
+                for name in ("mesh_x", "mesh_y", "mesh_z")
+            ]
+            for actual, expected_value in zip(
+                actual_mesh_origin, expected_mesh_origin
+            ):
+                self.assertAlmostEqual(expected_value, actual, places=6)
+
+            relative_center = [
+                cad_center[2] / 1000 + body_origin[0],
+                cad_center[0] / 1000 + body_origin[1],
+            ]
+            if element.tag == drive_tag:
+                expected_y = (
+                    float(element.attrib["reflect"])
+                    * float(properties["wheel_separation"])
+                    / 2
+                )
+                self.assertAlmostEqual(0.0, relative_center[0], places=6)
+                self.assertAlmostEqual(expected_y, relative_center[1], places=6)
+            else:
+                x_property, y_property = caster_positions[element.attrib["prefix"]]
+                self.assertAlmostEqual(
+                    float(properties[x_property]), relative_center[0], delta=0.0001
+                )
+                self.assertAlmostEqual(
+                    float(properties[y_property]), relative_center[1], delta=0.0001
+                )
+
+        sensors_root = ET.parse(SENSORS_XACRO).getroot()
+        lidar_origin = sensors_root.find("./link[@name='lidar_link']/visual/origin")
+        lidar_min, lidar_max = read_stl_bounds(MESH_DIR / "lidar_body.stl")
+        lidar_center = [
+            (lidar_min[axis] + lidar_max[axis]) / 2 for axis in range(3)
+        ]
+        expected_lidar_origin = [
+            -lidar_center[2] / 1000,
+            -lidar_center[0] / 1000,
+            -lidar_center[1] / 1000,
+        ]
+        actual_lidar_origin = [
+            float(value) for value in lidar_origin.attrib["xyz"].split()
+        ]
+        for actual, expected_value in zip(
+            actual_lidar_origin, expected_lidar_origin
+        ):
+            self.assertAlmostEqual(expected_value, actual, places=6)
+
+        sensor_properties = {
+            element.attrib["name"]: element.attrib["value"]
+            for element in sensors_root.iter(property_tag)
+        }
+        expected_lidar_position = [
+            lidar_center[2] / 1000 + body_origin[0],
+            lidar_center[0] / 1000 + body_origin[1],
+            lidar_center[1] / 1000 + body_origin[2],
+        ]
+        actual_lidar_position = [
+            float(sensor_properties[name])
+            for name in ("lidar_x", "lidar_y", "lidar_z")
+        ]
+        for actual, expected_value in zip(
+            actual_lidar_position, expected_lidar_position
+        ):
             self.assertAlmostEqual(expected_value, actual, places=6)
 
 
