@@ -1,6 +1,5 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -21,7 +20,6 @@ def generate_launch_description():
     odom_frame = LaunchConfiguration('odom_frame')
     initial_mode = LaunchConfiguration('initial_mode')
     use_sim_time = LaunchConfiguration('use_sim_time')
-    enable_teleop = LaunchConfiguration('enable_teleop')
 
     robot_xacro = PathJoinSubstitution([
         FindPackageShare('robot_description'),
@@ -72,8 +70,6 @@ def generate_launch_description():
                               description='manual or explore.'),
         DeclareLaunchArgument('use_sim_time', default_value='false',
                               description='Use simulation clock.'),
-        DeclareLaunchArgument('enable_teleop', default_value='true',
-                              description='Launch teleop_twist_keyboard.'),
 
         Node(
             package='robot_state_publisher',
@@ -120,16 +116,4 @@ def generate_launch_description():
             ],
         ),
 
-        Node(
-            package='teleop_twist_keyboard',
-            executable='teleop_twist_keyboard',
-            name='teleop_keyboard',
-            output='screen',
-            emulate_tty=True,
-            condition=IfCondition(enable_teleop),
-            remappings=[
-                ('cmd_vel', '/cmd_vel_manual'),
-                ('/cmd_vel', '/cmd_vel_manual'),
-            ],
-        ),
     ])

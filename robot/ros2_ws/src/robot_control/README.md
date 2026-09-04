@@ -69,8 +69,16 @@ ros2 launch robot_control manual_mode.launch.py \
   baudrate:=115200
 ```
 
-`teleop_twist_keyboard` is remapped to `/cmd_vel_manual`. For joystick control,
-launch your joystick stack separately and remap its output to `/cmd_vel_manual`.
+The launch leaves keyboard teleop out so it does not share or take over the
+launch terminal. In a second terminal, run:
+
+```bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args \
+  -r cmd_vel:=/cmd_vel_manual
+```
+
+For joystick control, launch your joystick stack separately and remap its output
+to `/cmd_vel_manual`.
 The installed drivetrain uses `invert_left:=true invert_right:=true` by default
 so the `i` key (positive ROS `linear.x`) moves the robot forward. Pass both as
 `false` together only if a bench test confirms the motor wiring is already
@@ -90,10 +98,12 @@ This launches:
 
 - `stm32_bridge`
 - `mode_manager_node`
-- `teleop_twist_keyboard`
 - `rplidar_ros`
 - `slam_toolbox` online async
 - `robot_state_publisher`
+
+In a second terminal, run `teleop_twist_keyboard` with the `/cmd_vel_manual`
+remap shown above.
 
 Save the map after a good mapping run:
 

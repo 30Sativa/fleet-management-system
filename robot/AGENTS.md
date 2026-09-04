@@ -59,6 +59,10 @@ Astra Pro (RGB)     -> person detection       -> Nav2 speed limit
   `/cmd_vel`.
 - Launch files must keep RViz **off by default** (`rviz:=true` to enable) so a
   headless miniPC does not hang.
+- Fast DDS Discovery Server can make CLI graph introspection (`ros2 topic list`,
+  `ros2 node info`) temporarily incomplete even while topics carry data. Follow
+  the troubleshooting note in `docs/network-ros-discovery.md` before declaring
+  a node or endpoint unavailable.
 
 <!-- TODO(Duy): thêm rule kiến trúc mới ở đây mỗi khi agent làm sai một lần. Đây là chỗ harness "học". -->
 

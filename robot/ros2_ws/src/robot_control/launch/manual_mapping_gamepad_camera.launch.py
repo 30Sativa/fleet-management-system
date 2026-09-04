@@ -92,7 +92,6 @@ def generate_launch_description():
                 'port': LaunchConfiguration('port'),
                 'lidar_serial_port': LaunchConfiguration('lidar_serial_port'),
                 'lidar_serial_baudrate': LaunchConfiguration('lidar_serial_baudrate'),
-                'enable_teleop': 'false',
             }.items(),
         ),
 

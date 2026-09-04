@@ -171,11 +171,20 @@ Run the real-robot manual stack:
 ros2 launch robot_control manual_mode.launch.py port:=/dev/ttyACM0 baudrate:=115200
 ```
 
+The manual launch does not start keyboard teleop. In a second terminal, run:
+
+```bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/cmd_vel_manual
+```
+
 Run manual mapping:
 
 ```bash
 ros2 launch robot_control manual_mapping.launch.py port:=/dev/ttyACM0 lidar_serial_port:=/dev/ttyUSB0
 ```
+
+Run keyboard teleop separately in another terminal with the same
+`/cmd_vel_manual` remap.
 
 Run auto explore:
 

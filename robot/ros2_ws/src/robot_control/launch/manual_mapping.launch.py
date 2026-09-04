@@ -17,7 +17,6 @@ def generate_launch_description():
     lidar_frame = LaunchConfiguration('lidar_frame')
     scan_mode = LaunchConfiguration('scan_mode')
     enable_lidar = LaunchConfiguration('enable_lidar')
-    enable_teleop = LaunchConfiguration('enable_teleop')
     slam_params_file = LaunchConfiguration('slam_params_file')
 
     manual_launch = PathJoinSubstitution([
@@ -63,8 +62,6 @@ def generate_launch_description():
                               description='RPLiDAR scan mode (A3: Sensitivity/Boost).'),
         DeclareLaunchArgument('enable_lidar', default_value='true',
                               description='Launch rplidar_ros node.'),
-        DeclareLaunchArgument('enable_teleop', default_value='true',
-                              description='Launch teleop_twist_keyboard.'),
         DeclareLaunchArgument('slam_params_file',
                               default_value=default_slam_params,
                               description='slam_toolbox parameter file.'),
@@ -81,7 +78,6 @@ def generate_launch_description():
                 'baudrate': baudrate,
                 'initial_mode': 'manual',
                 'use_sim_time': use_sim_time,
-                'enable_teleop': enable_teleop,
             }.items(),
         ),
 

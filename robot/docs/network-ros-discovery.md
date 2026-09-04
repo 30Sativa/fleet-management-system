@@ -101,6 +101,31 @@ ros2 topic list
 Phải thấy đủ topic của NUC (`/scan`, `/map`, `/ultrasonic/sonar*/range`,
 `/tf`, `/slam_toolbox/*`, ...) — không chỉ 2 topic mặc định nữa.
 
+## Introspection với Discovery Server
+
+Khi robot dùng `ROS_DISCOVERY_SERVER=127.0.0.1:11811`, node vẫn có thể chạy và
+truyền dữ liệu bình thường dù `ros2 topic list` hoặc `ros2 node info <node>`
+đôi khi hiện thiếu endpoint. Ví dụ, `/stm32_bridge_node` vẫn có thể publish
+sonar và `ros2 topic echo /ultrasonic/sonar1/range sensor_msgs/msg/Range` vẫn
+nhận được dữ liệu trong khi `ros2 node info /stm32_bridge_node` tạm thời hiện
+`Publishers:` trống. Đây là giới hạn/độ trễ của graph introspection, không tự
+động chứng minh node đã chết.
+
+Khi cần làm mới graph cache để debug, chạy:
+
+```bash
+ros2 daemon stop
+ROS_SUPER_CLIENT=TRUE ros2 daemon start
+ros2 topic list
+ros2 node info /stm32_bridge_node
+```
+
+Nếu đã biết topic cần kiểm tra, ưu tiên gọi trực tiếp topic đó để xác nhận dữ
+liệu trước khi kết luận endpoint bị mất. Giữ nguyên `ROS_DISCOVERY_SERVER`;
+không tắt Discovery Server để chữa lỗi introspection và không cần biến tất cả
+node thành Super Client. `ROS_SUPER_CLIENT=TRUE` chủ yếu là tuỳ chọn hỗ trợ
+debug/introspection cho CLI daemon.
+
 ## Lưu ý khi setup máy mới / mạng mới
 
 - Nếu đổi IP LAN của NUC (DHCP cấp lại IP khác), phải sửa lại
