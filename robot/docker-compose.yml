@@ -12,12 +12,20 @@
 # debug không thể kế thừa serial device từ service hardware.
 
 x-ros2-env: &ros2-env
-  ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
-  RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
-  # Để TRỐNG = DDS discovery multicast bình thường (khuyến nghị khi 2 máy cùng LAN).
-  # Chỉ set khi miniPC thật sự chạy Fast DDS Discovery Server, và khi đó giá trị
-  # phải là <MINIPC_IP>:11811 trên CẢ HAI máy — không hard-code 127.0.0.1 nữa.
-  ROS_DISCOVERY_SERVER: ${ROS_DISCOVERY_SERVER:-}
+  # miniPC và VMware PHẢI dùng cùng domain. Hệ thống này dùng 30.
+  ROS_DOMAIN_ID: "${ROS_DOMAIN_ID:-30}"
+  RMW_IMPLEMENTATION: "${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
+  ROS_LOCALHOST_ONLY: "${ROS_LOCALHOST_ONLY-0}"
+  # MẶC ĐỊNH RỖNG = DDS multicast discovery bình thường. KHÔNG tự bật Fast DDS
+  # Discovery Server.
+  #
+  # Dùng `${VAR-}` chứ KHÔNG phải `${VAR:-...}`: dạng `:-` fallback cả khi biến
+  # rỗng, nên `ROS_DISCOVERY_SERVER=` trong .env sẽ bị nuốt và thay bằng default.
+  # Dạng `-` chỉ fallback khi biến chưa tồn tại, nên rỗng thực sự là rỗng.
+  #
+  # Chỉ điền khi thật sự chạy `fastdds discovery --server-id 0` trên miniPC:
+  #   ROS_DISCOVERY_SERVER=<MINIPC_LAN_IP>:11811   (đặt trong .env, không hard-code ở đây)
+  ROS_DISCOVERY_SERVER: "${ROS_DISCOVERY_SERVER-}"
 
 services:
   # ---------------------------------------------------------------- miniPC --
