@@ -1,5 +1,29 @@
+# Một compose file duy nhất cho cả hai máy.
+#
+# MỌI service đều nằm sau một profile, nên `docker compose up` trần sẽ KHÔNG
+# khởi động gì cả. Đó là chủ ý: trên VMware không thể vô tình start service
+# hardware và gặp lỗi "/dev/ttyACM0: no such file or directory".
+#
+#   miniPC (phần cứng thật): docker compose --profile hardware up -d
+#   VMware (RViz2 / debug) : docker compose --profile debug    up -d
+#
+# Chỉ service `robot-ros2` được phép khai báo `devices:`. Anchor bên dưới cố ý
+# chỉ chứa biến môi trường ROS chung, không chứa devices/volumes, nên service
+# debug không thể kế thừa serial device từ service hardware.
+
+x-ros2-env: &ros2-env
+  ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+  RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+  # Để TRỐNG = DDS discovery multicast bình thường (khuyến nghị khi 2 máy cùng LAN).
+  # Chỉ set khi miniPC thật sự chạy Fast DDS Discovery Server, và khi đó giá trị
+  # phải là <MINIPC_IP>:11811 trên CẢ HAI máy — không hard-code 127.0.0.1 nữa.
+  ROS_DISCOVERY_SERVER: ${ROS_DISCOVERY_SERVER:-}
+
 services:
+  # ---------------------------------------------------------------- miniPC --
+  # Chạy phần cứng thật: STM32, RPLiDAR, gamepad.
   robot-ros2:
+    profiles: [hardware]
     image: ${DOCKER_IMAGE:-307sativa/robot-ros2:latest}
     container_name: robot-ros2
     network_mode: host
@@ -8,9 +32,7 @@ services:
     #   restart: unless-stopped
     restart: "no"
     environment:
-      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
-      RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
-      ROS_DISCOVERY_SERVER: ${ROS_DISCOVERY_SERVER:-127.0.0.1:11811}
+      <<: *ros2-env
       SERIAL_PORT: ${SERIAL_PORT:-/dev/ttyACM0}
       BAUDRATE: ${BAUDRATE:-115200}
       LIDAR_PORT: ${LIDAR_PORT:-/dev/ttyUSB0}
@@ -25,6 +47,8 @@ services:
       # Lưu map RA NGOÀI container: map robot build được nằm ở host, KHÔNG mất
       # khi container tắt/update image. Trỏ vào package robot_navigation/maps.
       - ./robot_maps:/maps
+    stdin_open: true
+    tty: true
     # KHÔNG hardcode một launch cụ thể ở đây. Container chỉ khởi động ROS env và
     # giữ sống, để bạn linh hoạt đổi chế độ (build map / auto explore / nav) bằng
     # cách exec vào container. Camera Astra chạy NATIVE trên host (không đưa vào
@@ -34,11 +58,36 @@ services:
     #   docker exec -it robot-ros2 bash
     #   ros2 launch robot_control manual_mapping.launch.py \
     #     port:=$SERIAL_PORT lidar_serial_port:=$LIDAR_PORT
-    #
-    # Khi CHỐT production 1 chế độ cố định, thay dòng dưới bằng launch mong muốn,
-    # ví dụ:
-    #   command: >
-    #     ros2 launch robot_navigation navigation.launch.py
-    #     map:=/maps/my_map.yaml enable_camera:=false
+    command: >
+      bash -c "sleep infinity"
+
+  # ---------------------------------------------------------------- VMware --
+  # Chỉ để development/debug + RViz2. KHÔNG có `devices:`, không chạy driver
+  # phần cứng. Nhìn thấy topic của miniPC qua LAN nhờ network_mode: host.
+  ros2-debug:
+    profiles: [debug]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: robot-ros2:dev
+    container_name: ros2-debug
+    network_mode: host
+    restart: "no"
+    environment:
+      <<: *ros2-env
+      DISPLAY: ${DISPLAY:-:0}
+      QT_X11_NO_MITSHM: "1"
+      LIBGL_ALWAYS_SOFTWARE: ${LIBGL_ALWAYS_SOFTWARE:-1}
+    volumes:
+      # Source mount live: sửa code trên VM rồi colcon build trong container.
+      - ./ros2_ws/src:/ros2_ws/src
+      - ./robot_maps:/maps
+      # X11 socket của Ubuntu guest -> RViz2 hiện lên trên VM.
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    stdin_open: true
+    tty: true
+    # Không launch gì cả. Vào container rồi tự chạy rviz2 / ros2 topic echo.
+    #   docker exec -it ros2-debug bash
+    #   rviz2
     command: >
       bash -c "sleep infinity"

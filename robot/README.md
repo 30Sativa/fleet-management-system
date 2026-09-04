@@ -71,78 +71,98 @@ STM32 from the miniPC or from GitHub Actions.
 
 ## Docker Compose Environments
 
-Use the compose file that matches the machine. The product compose is for the
-robot miniPC; the debug compose is for the Ubuntu guest inside VMware on the
-Windows development machine.
+Chỉ còn **một** file: `robot/docker-compose.yml`. Mỗi máy chọn một profile.
 
-| Environment | Compose file | Image/source | USB devices | RViz | Intended use |
+| Profile | Máy | Service | Image | USB devices | GUI |
 |---|---|---|---|---|---|
-| Product / robot miniPC | `docker-compose.yml` | Prebuilt DockerHub image | STM32, LiDAR, gamepad | Off by default | Deployed runtime |
-| Debug / Ubuntu VMware | `docker-compose.debug.yml` | Same prebuilt DockerHub image | None | X11 to Ubuntu VM | RViz, Gazebo and ROS graph inspection |
-| Optional local build | `docker-compose.dev.yml` | Local build, source mounted | None by default; hardware profile adds STM32 + LiDAR | X11 to Ubuntu VM | Offline development fallback |
+| `hardware` | robot miniPC | `robot-ros2` | Prebuilt DockerHub image | STM32, LiDAR, gamepad | không |
+| `debug` | Ubuntu guest trong VMware | `ros2-debug` | Build local -> `robot-ros2:dev` | **không có** | X11 tới X server của VM |
 
-### Debug on Ubuntu VMware
+Mọi service đều nằm sau profile, nên `docker compose up` trần sẽ không khởi
+động gì. Nhờ vậy trên VMware không thể vô tình start service hardware và gặp
+lỗi `error gathering device information ... /dev/ttyACM0: no such file or directory`.
 
-The normal VMware workflow pulls the exact image built by GitHub Actions. Run
-these commands inside the Ubuntu VM, from the `robot/` directory. The Windows
-host path is not used by Docker directly; clone or mount the repository inside
-the Ubuntu guest and run Docker there.
+`devices:` chỉ tồn tại trong service `robot-ros2`. Anchor `x-ros2-env` dùng
+chung chỉ chứa biến môi trường ROS, không chứa devices, nên service debug không
+thể kế thừa serial port.
 
-Create `.env` from `.env.example` and pin it to the same tag used by the
-miniPC. Prefer a commit SHA over `latest` when comparing behaviour:
+### Networking giữa VMware và miniPC
+
+Cả hai máy phải dùng **cùng `ROS_DOMAIN_ID`** và cùng cấu hình discovery.
+
+- Mặc định `ROS_DISCOVERY_SERVER` để trống = DDS discovery multicast bình thường.
+- Chỉ set `ROS_DISCOVERY_SERVER=<MINIPC_IP>:11811` (ví dụ `192.168.1.87:11811`)
+  khi miniPC thật sự chạy `fastdds discovery --server-id 0`, và phải set giống
+  nhau ở cả hai máy. Không bao giờ dùng `127.0.0.1` trên VMware — địa chỉ đó trỏ
+  về chính VM.
+- VMware network adapter phải ở chế độ **Bridged** (không phải NAT) để guest nằm
+  cùng LAN với miniPC.
+
+### Chạy trên miniPC
 
 ```bash
-cp .env.example .env
-sed -i 's#DOCKER_IMAGE=.*#DOCKER_IMAGE=307sativa/robot-ros2:<git-sha>#' .env
+cd robot
+cp .env.example .env      # lần đầu: điền DOCKER_IMAGE, ROS_DOMAIN_ID
+docker compose --profile hardware pull
+docker compose --profile hardware up -d
+docker exec -it robot-ros2 bash
 ```
 
-Allow local containers to connect to the VM X server before opening RViz:
+Trong container:
 
 ```bash
-xhost +local:docker
-docker compose -f docker-compose.debug.yml pull
-docker compose -f docker-compose.debug.yml up -d
-docker exec -it robot-ros2-debug bash
+ros2 launch robot_control manual_mapping.launch.py \
+  port:=$SERIAL_PORT lidar_serial_port:=$LIDAR_PORT
 ```
 
-The container has no source bind mount and no USB devices. The ROS packages,
-RViz and Gazebo come from the pulled image:
+### Chạy trên VMware (debug + RViz2)
 
 ```bash
+cd robot
+cp .env.example .env      # ROS_DOMAIN_ID phải giống miniPC
+xhost +local:docker       # cho container nói chuyện với X server của VM
+docker compose --profile debug up -d --build
+docker exec -it ros2-debug bash
+```
+
+Nếu miniPC dùng Discovery Server, truyền IP LAN của nó vào — không hard-code
+trong compose:
+
+```bash
+ROS_DISCOVERY_SERVER=192.168.1.87:11811 docker compose --profile debug up -d
+```
+
+Kiểm tra đã thấy ROS graph của miniPC chưa (chạy trong `ros2-debug`):
+
+```bash
+ros2 node list
 ros2 topic list
+ros2 topic echo /scan
+```
+
+Mở RViz2:
+
+```bash
 rviz2
-# or:
-ros2 launch robot_description gazebo.launch.py
 ```
 
-To inspect the real robot's ROS graph from VMware, set the same `ROS_DOMAIN_ID`
-and Discovery Server configuration as the miniPC before starting the container.
-For example:
+Source được mount live tại `/ros2_ws/src`, nên có thể sửa code trên VM rồi
+build lại trong container:
 
 ```bash
-ROS_DISCOVERY_SERVER=192.168.1.87:11811 \
-docker compose -f docker-compose.debug.yml up -d
+colcon build --symlink-install && source /ros2_ws/install/setup.bash
 ```
 
-Do not launch a second real-robot control stack from the debug container. Use
-VMware for `rviz2`, `ros2 topic`, `ros2 service`, `tf2_echo`, and other read-only
-debugging while the miniPC owns the hardware.
+Không launch stack điều khiển robot thật từ container debug. VMware chỉ dùng
+cho `rviz2`, `ros2 topic`, `ros2 service`, `tf2_echo` và các thao tác chỉ đọc,
+trong khi miniPC sở hữu phần cứng.
 
-The previous local-build compose is still available only as an offline fallback:
-
-```bash
-docker compose -f docker-compose.dev.yml up -d --build robot-ros2-dev
-```
-
-Use the local-build file only when intentionally testing source that has not
-yet been published by GitHub Actions. It is not part of the normal Windows ->
-GitHub -> DockerHub -> VMware/MiniPC workflow.
-
-When finished with the dev VM X11 permission:
+Khi xong, thu hồi quyền X11:
 
 ```bash
 xhost -local:docker
 ```
+
 
 ## How To Build Docker Image Locally
 
