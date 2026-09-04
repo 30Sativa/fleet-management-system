@@ -90,13 +90,19 @@ thể kế thừa serial port.
 
 Cả hai máy phải dùng **cùng `ROS_DOMAIN_ID`** và cùng cấu hình discovery.
 
-- Mặc định `ROS_DISCOVERY_SERVER` để trống = DDS discovery multicast bình thường.
-- Chỉ set `ROS_DISCOVERY_SERVER=<MINIPC_IP>:11811` (ví dụ `192.168.1.87:11811`)
-  khi miniPC thật sự chạy `fastdds discovery --server-id 0`, và phải set giống
-  nhau ở cả hai máy. Không bao giờ dùng `127.0.0.1` trên VMware — địa chỉ đó trỏ
-  về chính VM.
+- LAN đang dùng **chặn UDP multicast** (đã xác nhận, xem
+  `docs/network-ros-discovery.md`), nên Fast DDS Discovery Server là **bắt buộc**,
+  không phải tùy chọn. Nếu bỏ trống, VMware chỉ thấy `/rosout` và
+  `/parameter_events`.
+- Set `ROS_DISCOVERY_SERVER=<MINIPC_IP>:11811` (ví dụ `192.168.1.87:11811`) trong
+  `.env` của **cả hai** máy. Không bao giờ dùng `127.0.0.1` trên VMware — địa chỉ
+  đó trỏ về chính VM.
+- miniPC phải đang chạy `fastdds-discovery.service`:
+  `systemctl status fastdds-discovery.service`
 - VMware network adapter phải ở chế độ **Bridged** (không phải NAT) để guest nằm
   cùng LAN với miniPC.
+- Node nào start **trước** khi biến có hiệu lực thì vẫn dùng discovery cũ — restart
+  container sau khi sửa `.env`.
 
 ### Chạy trên miniPC
 
