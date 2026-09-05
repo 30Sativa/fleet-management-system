@@ -16,16 +16,11 @@ x-ros2-env: &ros2-env
   ROS_DOMAIN_ID: "${ROS_DOMAIN_ID:-30}"
   RMW_IMPLEMENTATION: "${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
   ROS_LOCALHOST_ONLY: "${ROS_LOCALHOST_ONLY-0}"
-  # MẶC ĐỊNH RỖNG = DDS multicast discovery bình thường. KHÔNG tự bật Fast DDS
-  # Discovery Server.
-  #
-  # Dùng `${VAR-}` chứ KHÔNG phải `${VAR:-...}`: dạng `:-` fallback cả khi biến
-  # rỗng, nên `ROS_DISCOVERY_SERVER=` trong .env sẽ bị nuốt và thay bằng default.
-  # Dạng `-` chỉ fallback khi biến chưa tồn tại, nên rỗng thực sự là rỗng.
-  #
-  # Chỉ điền khi thật sự chạy `fastdds discovery --server-id 0` trên miniPC:
-  #   ROS_DISCOVERY_SERVER=<MINIPC_LAN_IP>:11811   (đặt trong .env, không hard-code ở đây)
-  ROS_DISCOVERY_SERVER: "${ROS_DISCOVERY_SERVER-}"
+  # Fast DDS Discovery Server là bắt buộc trong workflow MiniPC <-> VMware.
+  # Không fallback sang multicast nếu thiếu cấu hình.
+  # MiniPC : ROS_DISCOVERY_SERVER=127.0.0.1:11811
+  # VMware : ROS_DISCOVERY_SERVER=amr-minipc:11811
+  ROS_DISCOVERY_SERVER: "${ROS_DISCOVERY_SERVER:?ROS_DISCOVERY_SERVER must be set in .env}"
 
 services:
   # ---------------------------------------------------------------- miniPC --

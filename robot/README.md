@@ -88,22 +88,17 @@ thể kế thừa serial port.
 
 ### Networking giữa VMware và miniPC
 
-Cả hai máy phải dùng **cùng `ROS_DOMAIN_ID` = 30** và cùng cấu hình discovery.
+Cả hai máy phải dùng cùng `ROS_DOMAIN_ID = 30`.
 
-- Mặc định là **DDS multicast discovery bình thường**: `ROS_DISCOVERY_SERVER` để
-  trống. Project không tự bật Fast DDS Discovery Server.
-- Compose dùng `${ROS_DISCOVERY_SERVER-}` chứ không phải `${ROS_DISCOVERY_SERVER:-...}`.
-  Dạng `:-` fallback cả khi biến **rỗng**, nên một default kiểu `127.0.0.1:11811`
-  sẽ nuốt mất dòng `ROS_DISCOVERY_SERVER=` trong `.env`. Dạng `-` chỉ fallback khi
-  biến **chưa tồn tại** — rỗng thực sự là rỗng.
-- VMware network adapter phải ở chế độ **Bridged** (không phải NAT) để guest nằm
-  cùng LAN với miniPC.
-- Nếu multicast bị router chặn (triệu chứng: VM chỉ thấy `/rosout` và
-  `/parameter_events`), khi đó mới bật Discovery Server trên miniPC và set
-  `ROS_DISCOVERY_SERVER=<MINIPC_LAN_IP>:11811` trong `.env` của **cả hai** máy.
-  Quy trình đầy đủ: `docs/network-ros-discovery.md`.
-- Node nào start **trước** khi biến có hiệu lực thì vẫn dùng discovery cũ — restart
-  container sau khi sửa `.env`.
+Dự án này luôn dùng **Fast DDS Discovery Server**, không fallback sang multicast:
+
+- MiniPC chạy Discovery Server tại `127.0.0.1:11811`.
+- VMware trỏ tới `amr-minipc:11811` qua Tailscale MagicDNS.
+- Không hard-code IP Wi-Fi/LAN.
+- Không ghi các biến ROS networking vào `~/.bashrc`.
+- Giá trị theo từng máy nằm trong `.env`.
+- Nếu thiếu `ROS_DISCOVERY_SERVER`, Docker Compose phải fail ngay thay vì quay về multicast.
+- Sau khi đổi `.env`, phải recreate container để environment mới có hiệu lực.
 
 Kiểm tra giá trị thực tế Compose sẽ truyền vào container:
 
@@ -115,7 +110,7 @@ docker compose --profile hardware config | grep -E 'ROS_DOMAIN_ID|ROS_DISCOVERY_
 
 ```bash
 cd robot
-cp .env.example .env      # lần đầu: điền DOCKER_IMAGE, ROS_DOMAIN_ID
+cp .env.minipc.example .env
 docker compose --profile hardware pull
 docker compose --profile hardware up -d
 docker exec -it robot-ros2 bash
@@ -132,18 +127,20 @@ ros2 launch robot_control manual_mapping.launch.py \
 
 ```bash
 cd robot
-cp .env.example .env      # ROS_DOMAIN_ID=30, giống hệt miniPC
+cp .env.vmware.example .env
 xhost +local:docker       # cho container nói chuyện với X server của VM
 docker compose --profile debug up -d --build
 docker exec -it ros2-debug bash
 ```
 
-Chỉ khi miniPC thật sự chạy Discovery Server thì mới truyền IP LAN của nó vào —
-không hard-code trong compose:
+VMware lấy Discovery Server từ `.env.vmware.example`:
 
-```bash
-ROS_DISCOVERY_SERVER=<MINIPC_LAN_IP>:11811 docker compose --profile debug up -d
+```text
+ROS_DISCOVERY_SERVER=amr-minipc:11811
 ```
+
+Không truyền IP LAN/Wi-Fi trực tiếp trên command line.
+
 
 Kiểm tra đã thấy ROS graph của miniPC chưa (chạy trong `ros2-debug`):
 
@@ -281,10 +278,10 @@ secrets into this repository.
 ## How miniPC Pulls And Runs The Image
 
 The robot compose file is `docker-compose.yml`. A ready-to-copy template is
-at `robot/.env.example` — `.env` itself is git-ignored, never commit it:
+using `robot/.env.minipc.example` for the MiniPC or `robot/.env.vmware.example` for VMware — `.env` itself is git-ignored, never commit it:
 
 ```bash
-cp .env.example .env
+cp .env.minipc.example .env
 nano .env   # fill in your real DOCKER_IMAGE
 ```
 

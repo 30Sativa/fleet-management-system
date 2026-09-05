@@ -5,9 +5,9 @@ Ghi lại lỗi "VM ping được NUC nhưng `ros2 topic list` trên VM chỉ ra
 
 ## Triệu chứng
 
-- NUC (robot thật, `192.168.1.87`) chạy đầy đủ node: `ros2 topic list` ra
+- NUC (robot thật, `<OLD_MINIPC_LAN_IP>`) chạy đầy đủ node: `ros2 topic list` ra
   `/scan`, `/odom`, `/map`, `/ultrasonic/sonar1-4/range`, ...
-- VM Ubuntu Humble (VMware, Bridged, `192.168.1.42`) chạy `ros2 topic list`
+- VM Ubuntu Humble (VMware, Bridged, `<OLD_VM_LAN_IP>`) chạy `ros2 topic list`
   chỉ ra 2 topic mặc định `/parameter_events` và `/rosout` — như thể
   không có node nào khác đang chạy trong mạng.
 - `ping` giữa 2 máy **thông bình thường cả 2 chiều**, 0% loss.
@@ -35,7 +35,7 @@ ros2 multicast receive
 # → đứng mãi ở "Waiting for UDP multicast datagram..." — KHÔNG nhận được gì
 ```
 
-Kết luận: multicast bị chặn giữa NUC và VM dù cùng subnet `192.168.1.0/24`
+Kết luận: multicast bị chặn giữa NUC và VM dù cùng subnet `<OLD_LAN_SUBNET>`
 và ping thông.
 
 ## Cách fix: Fast DDS Discovery Server (bypass multicast)
@@ -71,27 +71,14 @@ sudo systemctl status fastdds-discovery.service --no-pager
 Server lắng nghe cổng mặc định `11811`. Kiểm tra trạng thái bất cứ lúc
 nào bằng `systemctl status fastdds-discovery.service`.
 
-### 2. Trên NUC — persist biến môi trường
 
-```bash
-echo 'export ROS_DISCOVERY_SERVER=127.0.0.1:11811' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### 3. Trên VM — persist biến môi trường, trỏ về IP LAN của NUC
-
-```bash
-echo 'export ROS_DISCOVERY_SERVER=192.168.1.87:11811' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### 4. Restart mọi node ROS 2 đang chạy trên NUC
+### 2. Restart mọi node ROS 2 đang chạy trên NUC
 
 Node nào start **trước** khi biến `ROS_DISCOVERY_SERVER` được set thì vẫn
 đang dùng multicast discovery cũ. Dừng (Ctrl+C) và launch lại sau khi biến
 đã có hiệu lực.
 
-### 5. Xác nhận
+### 3. Xác nhận
 
 ```bash
 # Trên VM
